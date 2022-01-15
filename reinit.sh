@@ -143,7 +143,7 @@ function main() {
 
     microk8s config > kube.config
     cp kube.config /home/bobb/.kube/config
-    microk8s.kubectl api-resources -wide > ./api-resources.txt
+    microk8s.kubectl api-resources -o wide > ./api-resources.txt
     microk8s api-versions > ./api-api-versions.txt
     echo
 
