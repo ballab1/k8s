@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hubot
+  namespace: hubot
+  labels:
+    k8s-app: hubot
+data:
+  external-scripts-json: | 
+    [
+      "hubot-diagnostics",
+      "hubot-help",
+      "hubot-heroku-keepalive",
+      "hubot-google-images",
+      "hubot-google-translate",
+      "hubot-pugme",
+      "hubot-maps",
+      "hubot-redis-brain",
+      "hubot-rules",
+      "hubot-shipit",
+      "hubot-seen",
+      "hubot-grafana",
+      "hubot-grafana-zoto",
+      "hubot-github-repo-event-notifier",
+      "hubot-github-compare",
+      "hubot-github-create-pullrequests",
+      "hubot-github-deployments",
+      "hubot-github-slack-pr-threads",
+      "hubot-github-pr-reporter",
+      "hubot-github-merge",
+      "hubot-github-reminder",
+      "hubot-github-management",
+      "hubot-jira-links",
+      "hubot-confluence-search",
+      "hubot-spy",
+      "hubot-onboarding"
+    ]

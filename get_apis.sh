@@ -1,32 +1,28 @@
 #!/bin/bash
 
-function main() {
+START=$(date +%s)
 
-    set -o errexit
-    set -o nounset
-    set -o pipefail
-    IFS=\$'\n\t'
-    source /home/bobb/.bin/trap.bashlib
-    trap.__init 
+# declarations of MUST HAVE globals
+PROGRAM_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
+PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
+LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
+
+LASTTIME="$START"
+VERSION=1.23
+
+# Use the Unofficial Bash Strict Mode
+set -o errexit
+set -o nounset
+set -o pipefail
+IFS=$'\n\t'
+source "${BASHLIB_DIR}/trap.bashlib"
+source "${BASHLIB_DIR}/timer.bashlib"
+source "${PROGRAM_DIR}/k8s.bashlib"
+trap.__init
+trap k8s.onexit EXIT
 
 
-    local mode object
-    local -a modes=('wide' 'json' 'yaml')
+cd /home/bobb/workspace
 
-    mkdir -p apis
-    rm -rf apis/*
-    for mode in "${modes[@]}"; do
-        mkdir -p "apis/$mode"
-    done
-
-    while read -r object; do
-        echo "  $object"
-        for mode in "${modes[@]}"; do
-            declare ext="$mode"
-            [ "$mode" = 'wide' ] && ext='txt'
-            microk8s kubectl get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
-        done
-    done < <(microk8s.kubectl api-resources --no-headers=false -o=name --sort-by=name)
-}
-
-main "$@"
+k8s.dump_apis

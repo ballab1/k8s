@@ -1,0 +1,55 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: smee
+  namespace: smee
+  labels:
+    app.kubernetes.io/component: smee
+    app.kubernetes.io/name: smee
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: smee
+      app.kubernetes.io/name: smee
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: smee
+        app.kubernetes.io/name: smee
+    spec:
+      containers:
+        - name: smee
+          env:
+            - name: SMEE_TARGET
+              value: https://s3.ubuntu.home/jenkins/generic-webhook-trigger/invoke 
+            - name: SMEE_URL
+              value: https://smee.io/F9gFiEeTza0Po4Rd
+          image:  s2.ubuntu.home:5000/alpine/smee:dev
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: smee
+      serviceAccount: smee
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

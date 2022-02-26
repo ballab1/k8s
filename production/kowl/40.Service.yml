@@ -1,0 +1,26 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: kowl
+  namespace: kowl
+  labels:
+    app.kubernetes.io/component: kowl
+    app.kubernetes.io/name: kowl
+spec:
+  externalTrafficPolicy: Cluster 
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+  selector:
+    app.kubernetes.io/component: kowl
+    app.kubernetes.io/name: kowl
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

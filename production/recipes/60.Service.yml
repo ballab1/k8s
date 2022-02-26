@@ -1,0 +1,26 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: recipes
+  namespace: recipes
+  labels:
+    app.kubernetes.io/component: recipes
+    app.kubernetes.io/name: recipes
+spec:
+  externalTrafficPolicy: Cluster 
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: https
+      protocol: TCP
+      port: 80
+      targetPort: http 
+  selector:
+    app.kubernetes.io/component: recipes
+    app.kubernetes.io/name: recipes
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

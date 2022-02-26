@@ -1,0 +1,67 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: kowl
+  namespace: kowl
+  labels:
+    app.kubernetes.io/component: kowl
+    app.kubernetes.io/name: kowl
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kowl
+      app.kubernetes.io/name: kowl
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kowl
+        app.kubernetes.io/name: kowl
+    spec:
+      volumes:
+        - name: kowl-storage
+          emptyDir: {}
+      containers:
+        - name: kowl
+          image: s2.ubuntu.home:5000/thirdparty/kowl:v1.4.0
+          env:
+            - name: KAFKA_BROKERS
+              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.ubuntu.home:9092'
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: kowl-storage
+              mountPath: /etc/kowl
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: kowl
+      serviceAccount: kowl
+      securityContext:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

@@ -1,0 +1,104 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: hubot
+  namespace: hubot
+  labels:
+    app.kubernetes.io/component: hubot
+    app.kubernetes.io/name: hubot
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: hubot
+      app.kubernetes.io/name: hubot
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: hubot
+        app.kubernetes.io/name: hubot
+    spec:
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis
+            items:
+            - key: redis-ini
+              path: redis.ini
+        - name: hubot-config
+          configMap:
+            name: external-scripts-json
+            items:
+            - key: external-scripts-json
+              path: external-scripts.json
+        - name: hubot-storage
+          emptyDir: {}
+        - name: redis-storage
+          emptyDir: {}
+      containers:
+        - name: redis
+          command: 
+            - redis-server
+            - "/etc/redis/redis.conf"
+          image:  s2.ubuntu.home:5000/thirdparty/redis:6.2.6
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /var/lib/redis
+            - name: redis-config
+              mountPath: etc/redis/redis.conf
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+        - name: hubot
+          command: 
+            - "/usr/local/hubot/bin/hubot"
+            - "--adapter"
+            - "slack"
+          env:
+            - name: HUBOT_BOT_NAME
+              value: hubot 
+            - name: HUBOT_HOME
+              value: /usr/local/hubot
+            - name: HUBOT_SLACK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                   name: slack-token
+                   key: secret
+          image:  s2.ubuntu.home:5000/alpine/hubot:dev
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: hubot-storage
+              mountPath: /opt/hubot
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: hubot
+      serviceAccount: hubot
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
