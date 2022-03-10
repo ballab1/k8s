@@ -4,57 +4,47 @@
 #  functions for 'artifactory-utilities'
 #---------------------------------------------------------------------------------------------- 
 
-function k8s.add_nodes_to_cluster() {
+function k8s.__init() {
 
-    echo 'join nodes into cluster'
-    local cmd
-    for h in {6..8}; do
-        cmd="$(sudo microk8s add-node | grep '10.3.1.14' | head -1)"
-        echo "ssh s$h '$cmd'"
-        k8s.run ssh "s$h" "sudo $cmd"
-        k8s.run ssh "s$h" "microk8s status --wait-ready"
-    done
-    k8s.logElapsed "${FUNCNAME[0]}"
+    # shellcheck disable=SC2034
+    START=$(date +%s)
+
+    # Use the Unofficial Bash Strict Mode
+    set -o errexit
+    set -o nounset
+    set -o pipefail
+    IFS=$'\n\t'
+
+    # declarations of MUST HAVE globals
+    # shellcheck disable=SC2034
+    PROGRAM_DIR="${PROGRAM_DIR:-~/GIT/k8s}"
+    BASHLIB_DIR="${BASHLIB_DIR:-~/.bin/utilities/bashlib}"
+    PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
+    # shellcheck disable=SC2034
+    LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
+
+    # source other bashlibs
+
+    # shellcheck disable=SC1090
+    source "${BASHLIB_DIR}/trap.bashlib"
+    # shellcheck disable=SC1090
+    source "${BASHLIB_DIR}/timer.bashlib"
+    trap.__init
+    trap k8s.onexit EXIT
+
+    # shellcheck disable=SC2034
+    VERSION=1.23
+    DEBUG=1
+    LASTTIME="$START"
+
+    [ -z "${KUBECTL:-}" ] && KUBECTL=microk8s.kubectl
 }
 
-# -----------------------------------------------------------------------------------
-function k8s.load_namespace() {
-    local -r dir="${1:?}"
-    local -r verb="${2:-create}"
+# ----------------------------------------------------------------------------------- 
 
-    local direction=''
-    [ "$verb" = 'delete' ] && direction='-r'
-    
-    local file
-    while read -r file; do
-        k8s.run microk8s.kubectl "$verb" -f "${file}"
-    done < <(ls -1 ./production/${dir}/* | LC_ALL=C sort -n $direction)
-}
+function k8s.add_new_content() {
 
-# -----------------------------------------------------------------------------------
-function k8s.customize_content() {
-
-    echo 'customizing content'
-    k8s.run microk8s.kubectl apply -f ./production/corends.ConfigMap.yml
-    k8s.run microk8s.kubectl apply -f ./production/nginx-ingress.DaemonSet.yml
-
-#kubectl patch node k8s-node-1 -p '{"spec":{"unschedulable":true}}'
-
-    k8s.load_namespace 'monitoring'
-
-    k8s.run microk8s.kubectl create -f ./production/alertmanager.Ingress.yml
-    k8s.run microk8s.kubectl create -f ./production/kibana.Ingress.yml
-
-#    k8s.run microk8s.kubectl create -f ./production/local-hd.StorageClass.yml
-#    k8s.run microk8s.kubectl create -f ./production/s5-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s6-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s7-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s8-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/my-claim.persistentVolumeClaim.yml
-
-    k8s.load_namespace 'grafana' 'apply'
-    k8s.load_namespace 'kubernetes-dashboard' 'apply'
-
+    echo 'adding new content'
     k8s.load_namespace 'hubot'
     k8s.load_namespace 'jenkins'
     k8s.load_namespace 'kowl'
@@ -66,6 +56,21 @@ function k8s.customize_content() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.add_nodes_to_cluster() {
+
+    echo 'join nodes into cluster'
+    local cmd
+    for h in {6..8}; do
+        cmd="$(sudo microk8s add-node | grep '10.3.1.14' | head -1)"
+        echo "ssh s$h '$cmd'"
+        k8s.run ssh "s$h" "sudo $cmd"
+        k8s.run ssh "s$h" "microk8s status --wait-ready"
+    done
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
 function k8s.capture_config() {
 
     echo 'capturing config content'
@@ -74,6 +79,7 @@ function k8s.capture_config() {
     microk8s.kubectl api-versions ||: > ./api-api-versions.txt
     microk8s.kubectl api-resources -o wide ||: > ./api-resources.txt
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -83,46 +89,106 @@ function k8s.capture_ips_for_gui() {
     microk8s.kubectl get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
     scp services_ips.json s3:production/workspace.production/www/
     k8s.logElapsed "${FUNCNAME[0]}"
-}
-
-# -----------------------------------------------------------------------------------
-function k8s.dump_apis() {
-
-    local mode object
-    local -a modes=('wide' 'json' 'yaml')
-
-    mkdir -p apis
-    rm -rf apis/*
-    for mode in "${modes[@]}"; do
-        mkdir -p "apis/$mode"
-    done
-
-    while read -r object; do
-        echo "  $object"
-        for mode in "${modes[@]}"; do
-            declare ext="$mode"
-            [ "$mode" = 'wide' ] && ext='txt'
-            microk8s kubectl get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
-        done
-    done < <(microk8s.kubectl api-resources --no-headers=false -o=name --sort-by=name)
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
 function k8s.capture_status() {
 
     echo 'capturing status'
-    sudo snap alias microk8s.kubectl kubectl 
+    sudo snap alias microk8s-kubectl kubectl
     k8s.run microk8s.kubectl cluster-info
     k8s.run microk8s.kubectl get nodes
     k8s.run microk8s.kubectl get all -A
 
-#    ./get_apis.sh &
+#    k8s.dump_apis
 
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.enable_micrk8s_modules() {
+function k8s.createSecretsForApp() {
+
+    local -r target="${1:?}"
+    local -r certs="${2:-certs}"
+
+    [[ -e "$certs" && -e "$certs" ]] || return 0
+    local name    
+    while read -r file; do
+        name="$(echo "${target,,}${file//$certs/}" | sed -e 's|[/\.]|-|g')"
+        "$KUBECTL" create secret generic "$name" --dry-run=client --from-file="$file" -o yaml > "${target}/02.Secret.${name}.yaml"
+    done < <(find "$certs" -mindepth 1 -maxdepth 1 -type f)
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.customize_content() {
+
+    echo 'customizing content'
+    k8s.run microk8s.kubectl apply -f ./production/corends.ConfigMap.yml
+    k8s.run microk8s.kubectl apply -f ./production/nginx-ingress.DaemonSet.yml
+
+    k8s.run microk8s.kubectl patch service kibana-logging -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run microk8s.kubectl patch service kubernetes-dashboard -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run microk8s.kubectl patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
+
+    k8s.run microk8s.kubectl patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.2"}]}}}}'
+#    k8s.run microk8s.kubectl patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"grafana/grafana:7.5.4"}]}}}}'
+    k8s.run microk8s.kubectl patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run microk8s.kubectl patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run microk8s.kubectl patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+
+    k8s.load_namespace 'microk8s'
+
+#    k8s.run microk8s.kubectl create -f ./production/local-hd.StorageClass.yml
+#    k8s.run microk8s.kubectl create -f ./production/s5-local.PersistentVolume.yml
+#    k8s.run microk8s.kubectl create -f ./production/s6-local.PersistentVolume.yml
+#    k8s.run microk8s.kubectl create -f ./production/s7-local.PersistentVolume.yml
+#    k8s.run microk8s.kubectl create -f ./production/s8-local.PersistentVolume.yml
+#    k8s.run microk8s.kubectl create -f ./production/my-claim.persistentVolumeClaim.yml
+
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.dump_apis() {
+
+   local -r dir_org="${1:-by_api}"
+
+    local mode object
+    local -a modes=('wide' 'json' 'yaml')
+
+    mkdir -p apis
+    rm -rf apis/*
+
+    if [ "$dir_org" != 'by_api' ]; then
+        for mode in "${modes[@]}"; do
+            mkdir -p "apis/$mode"
+        done
+    fi
+    while read -r object; do
+        echo "  $object"
+        [ "$dir_org" = 'by_api' ] && mkdir -p "apis/${object}"
+        for mode in "${modes[@]}"; do
+            declare ext="$mode"
+            [ "$mode" = 'wide' ] && ext='txt'
+            if [ "$dir_org" = 'by_api' ]; then
+                microk8s.kubectl get "$object" -A -o "$mode" &> "apis/${object}/${mode}.$ext" ||:
+            else
+                microk8s.kubectl get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
+            fi
+        done
+    done < <(microk8s.kubectl api-resources --no-headers=false -o=name --sort-by=name)
+
+    microk8s.kubectl api-resources --sort-by=name --output wide > apis/api-resourses.txt
+
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.enable_microk8s_modules() {
 
     echo 'enable microk8s modules'
     for module in dashboard dashboard-ingress dns fluentd ingress 'metallb:192.168.0.1-192.168.0.100' metrics-server prometheus storage; do
@@ -131,6 +197,7 @@ function k8s.enable_micrk8s_modules() {
     k8s.run microk8s status --wait-ready
     k8s.run sudo iptables -P FORWARD ACCEPT
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -146,6 +213,27 @@ function k8s.generate_token() {
         break
     done
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.load_namespace() {
+
+    local -r dir="${1:?}"
+    local -r verb="${2:-create}"
+
+    local direction=''
+    [ "$verb" = 'delete' ] && direction='-r'
+    
+    local file status
+    while read -r file; do
+        (microk8s.kubectl "$verb" -f "${file}") && status=$? || status=$?
+        [ "$verb" = 'delete' ] && continue
+        [ "${status:-0}" -ne 0 ] && exit
+    done < <(find "production/${dir}" -type f | LC_ALL=C sort -n $direction)
+    echo
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -157,27 +245,25 @@ function k8s.logElapsed() {
     local current=$(timer.getTimestamp)
 
     {
-        timer.logElapsed "$text" $((current - LASTTIME)) 
+        printf '%s %s %s\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")"
         echo
     } | tee -a elapsed.times.txt
     LASTTIME="$current"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
 function k8s.onexit() {
 
-    find /tmp -maxdepth 1 -mindepth 1 -name 'ssh.s?.txt' -type f -delete
+    find /tmp -maxdepth 1 -mindepth 1 -type f \( -name 'ssh.s?.txt' -or -name 'tmp*' \) -delete
     if [ "${SCRIPT:-}" ]; then
-        for h in {5..8}; do
-            ssh "s$h" "[ -e "$SCRIPT" ] && rm '$SCRIPT'"
+        for h in s{5..8}.ubuntu.home; do
+            ssh "$h" "[ -e '$SCRIPT' ] && rm '$SCRIPT'"
         done
     fi
 
     local current=$(timer.getTimestamp)
-    {
-        timer.k8s.logElapsed 'Total Elapse time: ' $((current - START)) 
-        echo
-    } | tee -a elapsed.times.txt
+    printf '%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$((current - START))")" | tee -a elapsed.times.txt
 }
 
 # -----------------------------------------------------------------------------------
@@ -220,7 +306,7 @@ function main() {
 
     local host="${1:?}"
     local version="${2:?}"
-    echo "## ${host} ###########################################################################"
+    echo "## $(date -Ins) ${host} ###########################################################################"
 
     # Use the Unofficial Bash Strict Mode
     set -o errexit
@@ -251,7 +337,7 @@ function main() {
     run microk8s refresh-certs
     echo 'waiting for K8s to be ready'
     run microk8s status --wait-ready
-    echo "## ${host} ##################################################################### END #"
+    echo "## $(date -Ins) ${host} ##################################################################### END #"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function onexit() {
@@ -260,7 +346,7 @@ function onexit() {
 
     local current=$(timer.getTimestamp)
     local -i elapsed=$((current - START)) 
-    printf 'Elapsed time: %s\n' "$(timer.fmtElapsed $elapsed)" 
+    printf '%s Elapsed time: %s\n' "$(date -Ins)" "$(timer.fmtElapsed $elapsed)" 
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function run() {
@@ -281,39 +367,50 @@ EOF
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.installApp() {
+
+    local dir
+    for dir in "$@"; do
+        k8s.createSecretsForApp "$dir" 
+        k8s.load_namespace "$dir" 'delete'
+    done
+
+    for dir in "$@"; do
+        k8s.load_namespace "$dir"
+    done
+
+    "$KUBECTL" get svc -A
+
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
 function k8s.reinit_nodes() {
 
     SCRIPT="$(mktemp)"
     k8s.onRemote > "$SCRIPT"
 
-    local -r script='/tmp/reinit'
-#    echo "-- remote_script: $script --------------------------------------------------------"
-#    cat "$SCRIPT"
-#    echo "-- remote_script: $script -------------------------------------------------- EOF -"
-
     echo 'reinit each node'
-    for h in {5..8}; do
-      (
-        k8s.run scp "$SCRIPT" "s$h:$script"
-        ssh "s$h" "chmod 755 $script"
-        k8s.run ssh "s$h" "sudo $script"
-        ssh "s$h" "[ -e "$script" ] && rm $script"
-      ) &> /tmp/ssh.s$h.txt &
-    done
 
-    echo '  wait for all reinit commands to complete'
-    while true; do
-        wait
-        [ "$(jobs)" ] || break
-    done
+    local -r script='/tmp/reinit'
+    function reinitstall.remote() {
 
-    echo '  output log of each reinit'
-    for h in {5..8}; do
-        cat /tmp/ssh.s$h.txt
-        rm /tmp/ssh.s$h.txt
-    done
+        local -r h="${1:?}"
+        local -r script="${1:?}"
+
+        printf '%s starting %s\n' "$(date -Ins)" "$h"
+        k8s.run scp "$SCRIPT" "$h:$script"
+        ssh "$h" "chmod 755 $script"
+        k8s.run ssh "$h" "sudo '$script'"
+        k8s.logElapsed "${h}"
+        ssh "$h" "[ -e '$script' ] && rm '$script'"
+    }
+
+    k8s.runInParallel 'reinitstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
     rm "$SCRIPT"
+
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -334,6 +431,7 @@ function k8s.remove_content() {
     (k8s.load_namespace 'versions' 'delete') ||:
 
     k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -344,6 +442,32 @@ function k8s.run() {
       echo
   } >&2
   "$@"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.runInParallel() {
+
+    local script="${1:?}"
+    shift
+
+    echo "start $# copies of $script"
+    for h in "$@"; do
+      ( k8s.run "$h" "$script" ) &> "/tmp/$h.log" &
+    done
+
+    echo '  wait for all jobs to complete'
+    while [ "$(jobs)" ]; do
+        wait
+    done
+
+    echo '  output log of each job'
+    for h in "$@"; do
+        [ -e "/tmp/$h.log" ] || continue
+        cat "/tmp/$h.log"
+        rm "/tmp/$h.log"
+    done
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
 }
 
 # -----------------------------------------------------------------------------------

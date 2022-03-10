@@ -27,7 +27,7 @@ spec:
           emptyDir: {}
         - name: web-storage
           persistentVolumeClaim:
-             claimName: nas-recipies
+             claimName: nas-recipes
       containers:
         - name: recipes
           image:  s2.ubuntu.home:5000/thirdparty/nginx:1.20.2

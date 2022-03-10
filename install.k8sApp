@@ -8,5 +8,7 @@ source "${PROGRAM_DIR}/k8s.bashlib"
 k8s.__init
 
 cd /home/bobb/workspace
-
-k8s.dump_apis
+{
+    k8s.capture_ips_for_gui 'recipes' 'versions' 'kowl' 'hubot'
+    k8s.capture_ips_for_gui
+} | tee "${LOGFILE}" 
