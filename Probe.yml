@@ -8,7 +8,7 @@ spec:
   interval: 10s
   module: http_2xx
   prober:
-    url: blackbox-exporter.monitoring.svc.cluster.local:19115
+    url: https://blackbox-exporter.monitoring.svc.cluster.local:19115
     scheme: http
   targets:
     staticConfig:
