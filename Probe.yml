@@ -5,38 +5,13 @@ metadata:
   namespace: monitoring
 spec:
   jobName: exporter 
-  interval: 60s
+  interval: 10s
   module: http_2xx
   prober:
     url: blackbox-exporter.monitoring.svc.cluster.local:19115
     scheme: http
-#    path: ':9100/metrics'
-#    path: '/metrics'
-    path: '/probe'
-#  tlsConfig:
-#    insecureSkipVerify: false
   targets:
     staticConfig:
       static:
         - s3.ubuntu.home
         - s4.ubuntu.home
-#      relabelingConfigs:
-#        - sourceLabels: [__address__]
-#          targetLabel: instance
-#        - sourceLabels: [__address__]
-#          targetLabel: __address__
-#          replacement: $1:9100  # Make probe URL be like http://1.2.3.4:9100/metrics
-#          replacement: http://$1:9100/metrics  # Make probe URL be like http://1.2.3.4:9100/metrics
-#          replacement: http://$1  # Make probe URL be like http://1.2.3.4:9100/metrics
-#          replacement: http://$1:9100  # Make probe URL be like http://1.2.3.4:9100/metrics
-#        - targetLabel: __address__
-#          replacement: 127.0.0.1:19115  # The blackbox exporter's real hostname:port.
-#        - sourceLabels: [__address__]
-#          targetLabel: node
-#        - sourceLabels: [__param_target]
-#          targetLabel: instance
-      labels:
-        app.kubernetes.io/component: exporter
-        app.kubernetes.io/name: node-exporter
-        app.kubernetes.io/version: 1.1.2
-        pod-template-generation: '1'
