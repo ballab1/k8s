@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: jmx-node-exporter
+  name: jmx-nodes
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    any: true
+  endpoints:
+    - interval: 15s
+      path: /
+      scheme: http
+  jobLabel: app.kubernetes.io/name
+  selector:
+      matchLabels:
+        app.kubernetes.io/name: jmx-nodes
+        app.kubernetes.io/component: external-nodes

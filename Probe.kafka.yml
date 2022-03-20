@@ -1,10 +1,13 @@
 apiVersion: monitoring.coreos.com/v1
 kind: Probe
 metadata:
-  name: external-nodes
+  name: kafka-nodes
   namespace: monitoring
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: external-node-exporter
 spec:
-  jobName: node-exporter 
+  jobName: kafka-node-exporter 
   interval: 60s
   module: http_2xx
   prober:
@@ -15,12 +18,15 @@ spec:
     insecureSkipVerify: true
   targets:
     staticConfig:
+      labels:
+        external.exporter: kafka-node
       static:
-        - s3.ubuntu.home:9100/metrics
-        - s4.ubuntu.home:9100/metrics
+        - s3.ubuntu.home:9999
+        - s4.ubuntu.home:9999
+        - s8.ubuntu.home:9999
       relabelingConfigs:
         - sourceLabels: [__param_target]
-          separator: ':'
+          regex: '([^:]+)(:[0-9]+)?'
           replacement: $1
           targetLabel: instance
           action: replace

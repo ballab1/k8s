@@ -1,7 +1,7 @@
 #!/bin/echo 'This script cannot be executabled directly. Please source from another script'
 
 #----------------------------------------------------------------------------------------------
-#  functions for 'artifactory-utilities'
+#  functions for 'k8s.app'
 #---------------------------------------------------------------------------------------------- 
 
 function k8s.__init() {
@@ -22,6 +22,8 @@ function k8s.__init() {
     PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
     # shellcheck disable=SC2034
     LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
+    # shellcheck disable=SC2034
+    JSONNET_IMAGE='s2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
 
     # source other bashlibs
 
@@ -29,7 +31,6 @@ function k8s.__init() {
     source "${BASHLIB_DIR}/trap.bashlib"
     # shellcheck disable=SC1090
     source "${BASHLIB_DIR}/timer.bashlib"
-    trap.__init
     trap k8s.onexit EXIT
 
     # shellcheck disable=SC2034
@@ -37,7 +38,8 @@ function k8s.__init() {
     DEBUG=1
     LASTTIME="$START"
 
-    [ -z "${KUBECTL:-}" ] && KUBECTL=microk8s.kubectl
+    [ -z "${KUBECTL:-}" ] && KUBECTL="microk8s.kubectl"
+    :> 'elapsed.times.txt'
 }
 
 # ----------------------------------------------------------------------------------- 
@@ -76,8 +78,8 @@ function k8s.capture_config() {
     echo 'capturing config content'
     microk8s config > kube.config
     cp kube.config /home/bobb/.kube/config
-    microk8s.kubectl api-versions ||: > ./api-api-versions.txt
-    microk8s.kubectl api-resources -o wide ||: > ./api-resources.txt
+    "$KUBECTL" api-versions ||: > ./api-api-versions.txt
+    "$KUBECTL" api-resources -o wide ||: > ./api-resources.txt
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
@@ -85,8 +87,8 @@ function k8s.capture_config() {
 # -----------------------------------------------------------------------------------
 function k8s.capture_ips_for_gui() {
 
-    echo 'capturing IPs for s3.ubuntu.home'
-    microk8s.kubectl get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
+    echo 'capturing IPs for GUI'
+    "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
     scp services_ips.json s3:production/workspace.production/www/
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
@@ -97,15 +99,25 @@ function k8s.capture_status() {
 
     echo 'capturing status'
     sudo snap alias microk8s-kubectl kubectl
-    k8s.run microk8s.kubectl cluster-info
-    k8s.run microk8s.kubectl get nodes
-    k8s.run microk8s.kubectl get all -A
+    k8s.run "$KUBECTL" cluster-info
+    k8s.run "$KUBECTL" get nodes
+    k8s.run "$KUBECTL" get all -A
 
 #    k8s.dump_apis
 
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
+
+# -----------------------------------------------------------------------------------
+function k8s.createApp() {
+
+    [ "$#" -eq 0 ] && return 0
+    local dir
+    for dir in "$@"; do
+        k8s.load_namespace "$dir"
+    done
+} 
 
 # -----------------------------------------------------------------------------------
 function k8s.createSecretsForApp() {
@@ -125,27 +137,27 @@ function k8s.createSecretsForApp() {
 function k8s.customize_content() {
 
     echo 'customizing content'
-    k8s.run microk8s.kubectl apply -f ./production/corends.ConfigMap.yml
-    k8s.run microk8s.kubectl apply -f ./production/nginx-ingress.DaemonSet.yml
+    k8s.run "$KUBECTL" apply -f ./production/corends.ConfigMap.yml
+    k8s.run "$KUBECTL" apply -f ./production/nginx-ingress.DaemonSet.yml
 
-    k8s.run microk8s.kubectl patch service kibana-logging -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run microk8s.kubectl patch service kubernetes-dashboard -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run microk8s.kubectl patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
+    k8s.run "$KUBECTL" patch service kibana-logging -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch service kubernetes-dashboard -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
 
-    k8s.run microk8s.kubectl patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.2"}]}}}}'
-#    k8s.run microk8s.kubectl patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"grafana/grafana:7.5.4"}]}}}}'
-    k8s.run microk8s.kubectl patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run microk8s.kubectl patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run microk8s.kubectl patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.2"}]}}}}'
+#    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"grafana/grafana:7.5.4"}]}}}}'
+    k8s.run "$KUBECTL" patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
 
     k8s.load_namespace 'microk8s'
 
-#    k8s.run microk8s.kubectl create -f ./production/local-hd.StorageClass.yml
-#    k8s.run microk8s.kubectl create -f ./production/s5-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s6-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s7-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/s8-local.PersistentVolume.yml
-#    k8s.run microk8s.kubectl create -f ./production/my-claim.persistentVolumeClaim.yml
+#    k8s.run "$KUBECTL" create -f ./production/local-hd.StorageClass.yml
+#    k8s.run "$KUBECTL" create -f ./production/s5-local.PersistentVolume.yml
+#    k8s.run "$KUBECTL" create -f ./production/s6-local.PersistentVolume.yml
+#    k8s.run "$KUBECTL" create -f ./production/s7-local.PersistentVolume.yml
+#    k8s.run "$KUBECTL" create -f ./production/s8-local.PersistentVolume.yml
+#    k8s.run "$KUBECTL" create -f ./production/my-claim.persistentVolumeClaim.yml
 
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
@@ -174,14 +186,14 @@ function k8s.dump_apis() {
             declare ext="$mode"
             [ "$mode" = 'wide' ] && ext='txt'
             if [ "$dir_org" = 'by_api' ]; then
-                microk8s.kubectl get "$object" -A -o "$mode" &> "apis/${object}/${mode}.$ext" ||:
+                "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${object}/${mode}.$ext" ||:
             else
-                microk8s.kubectl get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
+                "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
             fi
         done
-    done < <(microk8s.kubectl api-resources --no-headers=false -o=name --sort-by=name)
+    done < <("$KUBECTL" api-resources --no-headers=false -o=name --sort-by=name)
 
-    microk8s.kubectl api-resources --sort-by=name --output wide > apis/api-resourses.txt
+    "$KUBECTL" api-resources --sort-by=name --output wide > apis/api-resourses.txt
 
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
@@ -207,13 +219,32 @@ function k8s.generate_token() {
     declare token_file='tokens.inf'
     :> "$token_file"
     for token in default-token admin-user ; do
-        declare ref="$(microk8s.kubectl -n kube-system get secret | grep "$token" | awk '{print $1}')"
+        declare ref="$("$KUBECTL" -n kube-system get secret | grep "$token" | awk '{print $1}')"
         [ -z "${ref:-}" ] && continue
-        k8s.run microk8s.kubectl -n kube-system describe secret "$ref" | tee -a "$token_file"
+        k8s.run "$KUBECTL" -n kube-system describe secret "$ref" | tee -a "$token_file"
         break
     done
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.installApp() {
+
+    [ "$#" -eq 0 ] && return 0
+
+    k8s.removeApp "$@"
+    k8s.createApp "$@"
+    "$KUBECTL" get all
+} 
+
+# -----------------------------------------------------------------------------------
+function k8s.jsonnet() {
+
+    [ "$#" -eq 0 ] && return 0
+    export JSONNET_PATH="${JSONNET_PATH:-}:https://raw.eos2git.cec.lab.emc.com/TechOps/k8s-libsonnet/upstream-main/1.20/"
+    local text="$(docker run --rm --tty --volume "$(pwd):$(pwd)" --workdir "$(pwd)" "$JSONNET_IMAGE" "$@")" ||:
+    echo "$text"
 }
 
 # -----------------------------------------------------------------------------------
@@ -227,7 +258,7 @@ function k8s.load_namespace() {
     
     local file status
     while read -r file; do
-        (microk8s.kubectl "$verb" -f "${file}") && status=$? || status=$?
+        ("$KUBECTL" "$verb" -f "${file}") && status=$? || status=$?
         [ "$verb" = 'delete' ] && continue
         [ "${status:-0}" -ne 0 ] && exit
     done < <(find "production/${dir}" -type f | LC_ALL=C sort -n $direction)
@@ -262,8 +293,9 @@ function k8s.onexit() {
         done
     fi
 
-    local current=$(timer.getTimestamp)
-    printf '%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$((current - START))")" | tee -a elapsed.times.txt
+    local -i delta="$(timer.getTimestamp)"
+    delta="$(( delta - START ))"
+    [ "$delta" -lt 3 ] || printf '%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a elapsed.times.txt
 }
 
 # -----------------------------------------------------------------------------------
@@ -315,7 +347,6 @@ function main() {
     IFS=$'\n\t'
     source "${BASHLIB_DIR}/trap.bashlib"
     source "${BASHLIB_DIR}/timer.bashlib"
-    trap.__init
     trap onexit EXIT
 
     run snap remove microk8s
@@ -367,21 +398,14 @@ EOF
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.installApp() {
+function k8s.removeApp() {
 
+    [ "$#" -eq 0 ] && return 0
     local dir
     for dir in "$@"; do
-        k8s.createSecretsForApp "$dir" 
+        k8s.createSecretsForApp "$dir"
         k8s.load_namespace "$dir" 'delete'
     done
-
-    for dir in "$@"; do
-        k8s.load_namespace "$dir"
-    done
-
-    "$KUBECTL" get svc -A
-
-    return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -417,8 +441,8 @@ function k8s.reinit_nodes() {
 function k8s.remove_content() {
 
     echo 'removing content'
-    k8s.run microk8s.kubectl apply -f ./production/corends.ConfigMap.yml
-    k8s.run microk8s.kubectl apply -f ./production/nginx-ingress.DaemonSet.yml
+    k8s.run "$KUBECTL" apply -f ./production/corends.ConfigMap.yml
+    k8s.run "$KUBECTL" apply -f ./production/nginx-ingress.DaemonSet.yml
 
     k8s.load_namespace 'grafana' 'apply'
     k8s.load_namespace 'kubernetes-dashboard' 'apply'
