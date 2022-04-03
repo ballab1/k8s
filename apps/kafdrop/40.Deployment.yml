@@ -1,0 +1,71 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: kafdrop
+  namespace: kafdrop
+  labels:
+    app.kubernetes.io/component: kafdrop
+    app.kubernetes.io/name: kafdrop
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kafdrop
+      app.kubernetes.io/name: kafdrop
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kafdrop
+        app.kubernetes.io/name: kafdrop
+    spec:
+      volumes:
+        - name: kafdrop-storage
+          emptyDir: {}
+      containers:
+        - name: kafdrop
+          image: s2.ubuntu.home:5000/thirdparty/kafdrop:3.27.0
+          env:
+            - name: JVM_OPTS
+              value: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+            - name: KAFKA_BROKERCONNECT
+              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.ubuntu.home:9092'
+            - name: KAFKA_BROKERS
+              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.ubuntu.home:9092'
+          ports:
+            - name: kafdrop
+              containerPort: 9000
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: kafdrop-storage
+              mountPath: /etc/kafdrop
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: kafdrop
+      serviceAccount: kafdrop
+      securityContext:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

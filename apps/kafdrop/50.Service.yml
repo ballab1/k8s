@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: kafdrop
+  namespace: kafdrop
+  labels:
+    app.kubernetes.io/component: kafdrop
+    app.kubernetes.io/name: kafdrop
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: kafdrop
+  selector:
+    app.kubernetes.io/component: kafdrop
+    app.kubernetes.io/name: kafdrop
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

@@ -1,0 +1,71 @@
+# https://github.com/yahoo/CMAK/blob/master/conf/application.conf
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: cmak
+  namespace: cmak
+  labels:
+    app.kubernetes.io/component: cmak
+    app.kubernetes.io/name: cmak
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: cmak
+      app.kubernetes.io/name: cmak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: cmak
+        app.kubernetes.io/name: cmak
+    spec:
+      volumes:
+        - name: cmak
+          configMap:
+            name: cmak
+      containers:
+        - name: cmak
+          tty: true
+          command:
+            - /usr/local/cmak/bin/cmak
+            - "-Dconfig.file=/usr/local/cmak/application.conf"
+          image: s2.ubuntu.home:5000/alpine/kafka-manager/3.0.0.5:dev
+          ports:
+            - name: cmak
+              containerPort: 9000
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: cmak
+              mountPath: /usr/local/cmak/application.conf
+              subPath: application.conf         
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: cmak
+      serviceAccount: cmak
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: false
+        fsGroup: 1000
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

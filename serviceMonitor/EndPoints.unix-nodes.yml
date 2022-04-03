@@ -3,7 +3,7 @@ kind: Endpoints
 metadata:
   labels:
     app.kubernetes.io/component: external-nodes
-    app.kubernetes.io/name: external-nodes
+    app.kubernetes.io/name: unix-nodes
   name: unix-nodes
   namespace: monitoring
 subsets:

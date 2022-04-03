@@ -3,18 +3,56 @@ kind: ServiceMonitor
 metadata:
   labels:
     app.kubernetes.io/component: exporter
-    app.kubernetes.io/name: external-node-exporter
+    app.kubernetes.io/name: node-exporter
   name: external-nodes
   namespace: monitoring
 spec:
   namespaceSelector:
     any: true
   endpoints:
-    - interval: 15s
+    - interval: 60s
       path: /metrics
+      port: http
+      targetPort: 9100
       scheme: http
+      relabelings:
+        - sourceLabels:
+            - node_name
+          targetLabel: instance
+          regex: (.*)
+          action: replace
+          replacement: $1
+      tlsConfig:
+        insecureSkipVerify: true
+    - interval: 60s
+      path: /metrics
+      port: http
+      targetPort: 9182
+      scheme: http
+      relabelings:
+        - sourceLabels:
+            - node_name
+          targetLabel: instance
+          regex: (.*)
+          action: replace
+          replacement: $1
+      tlsConfig:
+        insecureSkipVerify: true
+    - interval: 60s
+      path: /
+      port: http
+      targetPort: 9999
+      scheme: http
+      relabelings:
+        - sourceLabels:
+            - node_name
+          targetLabel: instance
+          regex: (.*)
+          action: replace
+          replacement: $1
+      tlsConfig:
+        insecureSkipVerify: true
   jobLabel: app.kubernetes.io/name
   selector:
       matchLabels:
         app.kubernetes.io/component: external-nodes
-        app.kubernetes.io/name: external-nodes

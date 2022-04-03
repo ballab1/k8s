@@ -7,10 +7,14 @@ function main() {
     mkdir -p /home/bobb/.kube
     sudo chown -f -R "$USER" /home/bobb/.kube
 
-    k8s.load_namespace 'microk8s' 'delete'
+    k8s.load_namespace 'prometheus' 'delete'
     microk8s disable prometheus
     microk8s enable prometheus
-    k8s.customize_content
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.5"}]}}}}'
+    k8s.run "$KUBECTL" patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.run "$KUBECTL" patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
+    k8s.load_namespace 'prometheus'
+    "$KUBECTL" patch Prometheus/k8s -n monitoring --patch-file=./production/Prometheus.k8s.yml --type='merge'
     k8s.capture_ips_for_gui
 }
 

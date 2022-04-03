@@ -1,0 +1,81 @@
+# http://www.kafka-eagle.org/articles/docs/installation/configuration.html
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: efak
+  namespace: efak
+  labels:
+    app.kubernetes.io/component: efak
+    app.kubernetes.io/name: efak
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: efak
+      app.kubernetes.io/name: efak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: efak
+        app.kubernetes.io/name: efak
+    spec:
+      volumes:
+        - name: efak
+          configMap:
+            name: efak
+        - name: efak-storage
+          emptyDir: {}
+      containers:
+        - name: efak
+          command:
+            - /opt/kafka-eagle/bin/ke.sh
+            - start
+          image: s2.ubuntu.home:5000/alpine/kafka-eagle/2.1.0:dev
+          env:
+            - name: JAVA_HOME
+              value: /usr/lib/jvm/java-11-openjdk
+            - name: KE_HOME
+              value: /opt/kafka-eagle
+            - name: KAFKA_ZOOKEEPER_HOSTS
+              value:  's3.ubuntu.home:2181,s4.ubuntu.home:2181,s8.ubuntu.home:2181'
+          ports:
+            - name: efak
+              containerPort: 8048
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: efak
+              mountPath: /opt/kafka-eagle/system-config.properties
+              subPath: system-config.properties
+            - name: efak-storage
+              mountPath: /hadoop/kafka-eagle/db
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: efak
+      serviceAccount: efak
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: false
+        fsGroup: 1000
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

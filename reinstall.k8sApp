@@ -10,6 +10,6 @@ k8s.__init
 
 cd /home/bobb/workspace
 {
-    k8s.capture_ips_for_gui 'recipes' 'versions' 'kowl' 'hubot'
+    k8s.installApp 'recipes' 'versions' 'kowl' 'hubot'
     k8s.capture_ips_for_gui
 } | tee "${LOGFILE}"  

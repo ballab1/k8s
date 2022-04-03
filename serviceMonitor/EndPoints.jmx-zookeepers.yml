@@ -3,7 +3,7 @@ kind: Endpoints
 metadata:
   labels:
     app.kubernetes.io/component: external-nodes
-    app.kubernetes.io/name: jmx-nodes
+    app.kubernetes.io/name: zookeepers
   name: jmx-zookeepers
   namespace: monitoring
 subsets:

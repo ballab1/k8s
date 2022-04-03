@@ -10,9 +10,26 @@ spec:
   namespaceSelector:
     any: true
   endpoints:
-    - interval: 15s
-      path: /
-      scheme: http
+    - interval: 60s
+      targetPort: 7200
+      scheme: tcp
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_pod_node_name
+          targetLabel: instance
+          regex: (.*)
+          action: replace
+          replacement: $1
+    - interval: 60s
+      targetPort: 7201
+      scheme: tcp
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_pod_node_name
+          targetLabel: instance
+          regex: (.*)
+          action: replace
+          replacement: $1
   jobLabel: app.kubernetes.io/name
   selector:
       matchLabels:

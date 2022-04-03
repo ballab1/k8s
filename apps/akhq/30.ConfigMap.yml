@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: application-yml
+  namespace: akhq
+  labels:
+    k8s-app: akhq
+data:
+  application.yml: | 
+    akhq:
+        connections:
+            docker-kafka-server:
+                properties:
+                   bootstrap.servers: "s3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.home.ubuntu:9092"
