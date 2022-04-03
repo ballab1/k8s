@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: akhq
+  namespace: akhq
+  labels:
+    app.kubernetes.io/component: akhq
+    app.kubernetes.io/name: akhq
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: akhq
+  selector:
+    app.kubernetes.io/component: akhq
+    app.kubernetes.io/name: akhq
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

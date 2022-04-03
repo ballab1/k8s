@@ -7,19 +7,14 @@ metadata:
     app.kubernetes.io/component: kowl
     app.kubernetes.io/name: kowl
 spec:
-  externalTrafficPolicy: Cluster 
-  internalTrafficPolicy: Cluster
-  ipFamilies:
-    - IPv4
-  ipFamilyPolicy: SingleStack
+  selector:
+    app.kubernetes.io/component: kowl
+    app.kubernetes.io/name: kowl
   ports:
     - name: http
       protocol: TCP
       port: 80
       targetPort: http
-  selector:
-    app.kubernetes.io/component: kowl
-    app.kubernetes.io/name: kowl
   sessionAffinity: None
   type: LoadBalancer
 status:

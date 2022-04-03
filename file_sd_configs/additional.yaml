@@ -1,0 +1,13 @@
+- job_name: "http-configs"
+  scrape_interval: 60s
+  scheme: http
+  metrics_path: "/metrics"
+  file_sd_configs:
+    - files:
+        - "/etc/prometheus/configmaps/additional-targets/http-targets.json"
+  relabel_configs:
+  - source_labels:
+    separator: ':'
+    replacement: $1
+    targetLabel: instance
+    action: replace

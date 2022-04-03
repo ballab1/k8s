@@ -1,0 +1,63 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: zoonavigator
+  namespace: zoonavigator
+  labels:
+    app.kubernetes.io/component: zoonavigator
+    app.kubernetes.io/name: zoonavigator
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: zoonavigator
+      app.kubernetes.io/name: zoonavigator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: zoonavigator
+        app.kubernetes.io/name: zoonavigator
+    spec:
+      containers:
+        - name: zoonavigator
+          image: s2.ubuntu.home:5000/thirdparty/zoonavigator:1.1.2
+          env:
+            - name: CONNECTION_MYZK_CONN
+              value: 's3.ubuntu.home:2181,s4.ubuntu.home:2181,s8.ubuntu.home:2181'
+#            - name: AUTO_CONNECT_CONNECTION_STRING
+#              value: MYZK
+          ports:
+            - name: zoonavigator
+              containerPort: 9000
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: zoonavigator
+      serviceAccount: zoonavigator
+      securityContext:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: cmak
+  namespace: cmak
+  labels:
+    app.kubernetes.io/component: cmak
+    app.kubernetes.io/name: cmak
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: cmak
+  selector:
+    app.kubernetes.io/component: cmak
+    app.kubernetes.io/name: cmak
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

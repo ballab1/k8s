@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jvm-options
+  namespace: akhq
+  labels:
+    k8s-app: akhq
+data:
+  jvm.options: | 
+    -Dcom.sun.management.jmxremote=true
+    -Dcom.sun.management.jmxremote.port=7200
+    -Dcom.sun.management.jmxremote.local.only=false
+    -Dcom.sun.management.jmxremote.authenticate=false
+    -Dcom.sun.management.jmxremote.rmi.port=7201
+    -Dcom.sun.management.jmxremote.ssl=false
+    -Djava.awt.headless=true
+    -Duser.timezone=EDT
+    -Dmicronaut.config.files=/app/conf/application.yml
+    
+    ###########################################################################
+    #                             jvm.options                                 #
+    #                                                                         #
+    # - all flags defined here will be used to startup the JVM                #
+    # - one flag should be specified per line                                 #
+    # - lines that do not start with '-' will be ignored                      #
+    # - only static flags are accepted (no variables or parameters)           #
+    # - dynamic flags will be appended to these on cassandra-env              #
+    ###########################################################################
+    
+    # Jmx Remote
+    #-Dcom.sun.management.jmxremote=true
+    #-Dcom.sun.management.jmxremote.port=7203
+    #-Dcom.sun.management.jmxremote.local.only=false
+    #-Dcom.sun.management.jmxremote.authenticate=false
+    #-Dcom.sun.management.jmxremote.rmi.port=7203
+    #-Dcom.sun.management.jmxremote.ssl=false
+    
+    # Server Hotspot JVM
+    #-server
+    
+    # set to headless, just in case
+    #-Djava.awt.headless=true
+    
+    # generate a heap dump when an allocation from the Java heap fails
+    # heap dumps are created in the working directory of the JVM
+    #-XX:+HeapDumpOnOutOfMemoryError
+    #-XX:HeapDumpPath=/tmp/heapdump.log
+    
+    # Do not rely on the system configuration
+    # ensure UTF-8 encoding by default (e.g. filenames)
+    #-Dfile.encoding=UTF-8
+    #-Duser.timezone=UTC

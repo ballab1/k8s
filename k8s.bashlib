@@ -144,13 +144,15 @@ function k8s.customize_content() {
     k8s.run "$KUBECTL" patch service kubernetes-dashboard -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
 
-    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.2"}]}}}}'
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.5"}]}}}}'
 #    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"grafana/grafana:7.5.4"}]}}}}'
     k8s.run "$KUBECTL" patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
 
     k8s.load_namespace 'microk8s'
+    k8s.load_namespace 'prometheus'
+    "$KUBECTL" patch Prometheus/k8s -n monitoring --patch-file=./production/Prometheus.k8s.yml --type='merge'
 
 #    k8s.run "$KUBECTL" create -f ./production/local-hd.StorageClass.yml
 #    k8s.run "$KUBECTL" create -f ./production/s5-local.PersistentVolume.yml
@@ -202,8 +204,10 @@ function k8s.dump_apis() {
 # -----------------------------------------------------------------------------------
 function k8s.enable_microk8s_modules() {
 
+   local modules=('dashboard' 'dashboard-ingress' 'dns' 'fluentd' 'ingress' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'prometheus' 'storage' 'helm3' 'rbac')
+
     echo 'enable microk8s modules'
-    for module in dashboard dashboard-ingress dns fluentd ingress 'metallb:192.168.0.1-192.168.0.100' metrics-server prometheus storage; do
+    for module in "${modules[@]}"; do
         k8s.run sudo microk8s enable "$module" ||:
     done
     k8s.run microk8s status --wait-ready
@@ -476,7 +480,7 @@ function k8s.runInParallel() {
 
     echo "start $# copies of $script"
     for h in "$@"; do
-      ( k8s.run "$h" "$script" ) &> "/tmp/$h.log" &
+      ( k8s.run ssh "$h" "$script" ) &> "/tmp/$h.log" &
     done
 
     echo '  wait for all jobs to complete'

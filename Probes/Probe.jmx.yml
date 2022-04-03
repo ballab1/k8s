@@ -9,11 +9,10 @@ metadata:
 spec:
   jobName: jmx-node-exporter 
   interval: 60s
-  module: http_2xx
+  module: tcp
   prober:
     url: blackbox-exporter.monitoring.svc.cluster.local:19115
-    scheme: http
-    path: /probe
+    scheme: tcp
   tlsConfig:
     insecureSkipVerify: true
   targets:

@@ -19,7 +19,7 @@ spec:
   targets:
     staticConfig:
       labels:
-        external.exporter: physical-node
+        external.exporter: external-node
       static:
         - nas.home:9100/metrics
         - wdmycloud.home:9100/metrics
@@ -33,4 +33,8 @@ spec:
           regex: '([^:]+)(:[0-9]+)?/metrics'
           replacement: '${1}'
           targetLabel: instance
+          action: replace
+        - sourceLabels: [job]
+          replacement: 'node-exporter'
+          targetLabel: job
           action: replace

@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: efak
+  namespace: efak
+  labels:
+    app.kubernetes.io/component: efak
+    app.kubernetes.io/name: efak
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: efak
+  selector:
+    app.kubernetes.io/component: efak
+    app.kubernetes.io/name: efak
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

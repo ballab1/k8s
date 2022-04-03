@@ -1,0 +1,208 @@
+# from:  https://jenkinsci.github.io/kubernetes-operator/docs/getting-started/latest/installing-the-operator
+
+# Enabled can enable or disable the Jenkins instance. Set to false if you have configured CR already and/or you want to deploy an operator only.
+enabled: false
+
+# Version of the CR manifest. The recommended and default value is jenkins.io/v1alpha2. More info
+apiVersion: jenkins.io/v1alpha2
+
+# Name of resource. The pod name will be jenkins-<name> (name will be set as suffix).
+name: jenkins
+
+# Namespace the resources will be deployed to. It's not recommended to use default namespace. Create new namespace for jenkins (e.g. kubectl create -n jenkins)
+namespace: default
+
+# Labels are injected into metadata labels field.
+labels: {}
+
+# Annotations are injected into metadata annotations field.
+annotations: {}
+
+# Image is the name (and tag) of the Jenkins instance. It's recommended to use LTS (tag: "lts") version.
+image: jenkins/jenkins:lts
+
+# Env contains jenkins container environment variables.
+env: []
+
+# Defines policy for pulling images
+imagePullPolicy: Always
+
+# PriorityClassName indicates the importance of a Pod relative to other Pods. More info
+priorityClassName: ""
+
+# disableCSRFProtection can enable or disable operator built-in CSRF protection. Set it to true if you are using OpenShift Jenkins Plugin. More info
+disableCSRFProtection: false
+
+# Used if you want to pull images from private repository More info
+imagePullSecrets: []
+
+# Notifications is feature that notify user about Jenkins reconcilation status More info
+notifications: []
+
+# Plugins installed and required by the operator shouldn't contain plugins defined by user You can change their versions here More info
+basePlugins:
+- name: kubernetes
+  version: "1.25.2"
+- name: workflow-job
+  version: "2.39"
+- name: workflow-aggregator
+  version: "2.6"
+- name: git
+  version: "4.2.2"
+- name: job-dsl
+  version: "1.77"
+- name: configuration-as-code
+  version: "1.38"
+- name: kubernetes-credentials
+        -provider
+  version: "0.13"
+
+# Plugins required by the user. You can define plugins here. More info Example:
+#plugins:
+# - name: simple-theme-plugin
+#   version: 0.5.1
+plugins: []
+
+
+# Placeholder for jenkins seed jobs For seed job creation tutorial, check:
+# Prepare seed jobs
+# Configure seed jobs
+# Example:
+# seedJobs:
+# - id: jenkins-operator
+#   targets: "cicd/jobs/*.jenkins"
+#   description: "Jenkins Operator repository"
+#   repositoryBranch: master
+#   repositoryUrl: 
+#   - https://github.com/jenkinsci/kubernetes-operator.git
+seedJobs: []
+
+# Resource limit/request for Jenkins More info
+resources:
+  limits:
+    cpu: 1500m
+    memory: 3Gi
+  requests:
+    cpu: 1
+    memory: 500M
+
+# Volumes used by Jenkins By default, we are only using PVC volume for storing backups.
+volumes	
+- name: backup
+  persistentVolumeClaim:
+    claimName: jenkins-backup
+
+# volumeMounts are mounts for Jenkins pod.
+volumeMounts: []
+
+# SecurityContext for pod.
+securityContext: runAsUser: 1000 fsGroup: 1000
+
+# Http Jenkins service. See https://jenkinsci.github.io/kubernetes-operator/docs/getting-started/latest/schema/#github.com/jenkinsci/kubernetes-operator/pkg/apis/jenkins/v1alpha2.Service for details.
+service: not implemented
+
+# Slave Jenkins service. See https://jenkinsci.github.io/kubernetes-operator/docs/getting-started/latest/schema/#github.com/jenkinsci/kubernetes-operator/pkg/apis/jenkins/v1alpha2.Service for details.
+slaveService: not implemented
+
+# livenessProbe for Pod
+livenessProbe:
+  failureThreshold: 12
+  httpGet:
+    path: /login
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 80
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+
+# readinessProbe for Pod
+readinessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /login
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 1
+
+# Backup is section for configuring operator's backup feature By default backup feature is enabled and pre-configured This section simplifies the configuration described here: Configuring backup and restore For customization tips see Custom backup and restore
+backup:
+# Enabled is enable/disable switch for backup feature.
+  enabled: true
+
+# Image used by backup feature.
+  image: virtuslab/jenkins-operator-backup-pvc:v0.0.8
+
+# Backup container name.
+  containerName: backup
+
+# Defines how often make backup in seconds.
+  interval: 30
+
+# When enabled will make backup before pod deletion.
+  makeBackupBeforePodDeletion: true
+
+# Backup container command.
+  backupCommand: /home/user/bin/backup.sh
+
+# Backup restore command.
+  restoreCommand: /home/user/bin/restore.sh
+
+# Persistent Volume Claim Kubernetes resource
+  pvc:
+
+# Enable/disable switch for PVC
+    enabled: true
+
+# Enable/disable switch for PVC
+   enabled: true
+
+# Size of PVC
+   size: 5Gi
+
+# StorageClassName for PVC More info
+  className: ""
+
+# Contains container environment variables. PVC backup provider handles these variables:
+# BACKUP_DIR - path for storing backup files (default: "/backup")
+# JENKINS_HOME - path to jenkins home (default: "/jenkins-home")
+# BACKUP_COUNT - define how much recent backups will be kept
+  env	
+    - name: BACKUP_DIR
+      value: /backup
+    - name: JENKINS_HOME
+      value: /jenkins-home
+    - name: BACKUP_COUNT
+      value: "3"
+
+# Holds the mount points for volumes.
+  volumeMounts	
+    - name: jenkins-home
+      mountPath: /jenkins-home
+    - mountPath: /backup
+      name: backup
+
+
+
+# Section where we can configure Jenkins instance. See Customizing Jenkins for details
+configuration:
+  
+# ConfigurationAsCode defines configuration of Jenkins customization via Configuration as Code Jenkins plugin. Example:
+#  - configMapName: jenkins-casc
+#    content: {}
+  configurationAsCode: {}
+
+# GroovyScripts defines configuration of Jenkins customization via groovy scripts. Example:
+#  - configMapName: jenkins-gs
+#    content: {}
+  groovyScripts: {}
+
+# secretRefName of existing secret (previously created).
+  secretRefName: “”
+
+# If secretRefName is empty, secretData creates new secret and fills with data provided in secretData.
+  secretData: {}
+

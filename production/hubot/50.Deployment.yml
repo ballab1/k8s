@@ -1,38 +1,33 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: recipes
-  namespace: recipes
+  name: pgadmin4
+  namespace: pgadmin4
   labels:
-    app.kubernetes.io/component: recipes
-    app.kubernetes.io/name: recipes
+    app.kubernetes.io/component: pgadmin4
+    app.kubernetes.io/name: pgadmin4
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: recipes
-      app.kubernetes.io/name: recipes
+      app.kubernetes.io/component: pgadmin4
+      app.kubernetes.io/name: pgadmin4
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: recipes
-        app.kubernetes.io/name: recipes
+        app.kubernetes.io/component: pgadmin4
+        app.kubernetes.io/name: pgadmin4
     spec:
       volumes:
-        - name: var-storage
-          emptyDir: {} 
-        - name: run-storage
+        - name: storage
           emptyDir: {}
-        - name: web-storage
-          persistentVolumeClaim:
-             claimName: nas-recipes
       containers:
-        - name: recipes
-          image:  s2.ubuntu.home:5000/thirdparty/nginx:1.20.2
+        - name: pgadmin4
+          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:6.7
           ports:
-            - name: recipes
+            - name: pgadmin4
               containerPort: 80
               protocol: TCP
           resources:
@@ -43,13 +38,8 @@ spec:
               cpu: 100m
               memory: 100Mi
           volumeMounts:
-            - name: run-storage
-              mountPath: /var/run 
-            - name: var-storage
-              mountPath: /var/cache/nginx 
-            - name: web-storage
-              mountPath: /usr/share/nginx/html
-              subPath: recipes
+            - name: storage
+              mountPath: /var/lib/pgadmin
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
@@ -61,8 +51,8 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: recipes
-      serviceAccount: recipes
+      serviceAccountName: pgadmin4
+      serviceAccount: pgadmin4
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate
