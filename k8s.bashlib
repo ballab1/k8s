@@ -420,18 +420,17 @@ function k8s.reinit_nodes() {
 
     echo 'reinit each node'
 
-    local -r script='/tmp/reinit'
+    local -r REMOTE='/tmp/reinit'
     function reinitstall.remote() {
 
         local -r h="${1:?}"
-        local -r script="${1:?}"
 
         printf '%s starting %s\n' "$(date -Ins)" "$h"
-        k8s.run scp "$SCRIPT" "$h:$script"
-        ssh "$h" "chmod 755 $script"
-        k8s.run ssh "$h" "sudo '$script'"
+        k8s.run scp "$SCRIPT" "$h:$REMOTE"
+        ssh "$h" "chmod 755 $REMOTE"
+        k8s.run ssh "$h" "sudo '$REMOTE'"
         k8s.logElapsed "${h}"
-        ssh "$h" "[ -e '$script' ] && rm '$script'"
+        ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
     k8s.runInParallel 'reinitstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
@@ -480,13 +479,16 @@ function k8s.runInParallel() {
 
     echo "start $# copies of $script"
     for h in "$@"; do
-      ( k8s.run ssh "$h" "$script" ) &> "/tmp/$h.log" &
+      ( k8s.run "$script" "$h" ) &> "/tmp/$h.log" &
     done
 
     echo '  wait for all jobs to complete'
+set -x
     while [ "$(jobs)" ]; do
         wait
+#        sleep 5
     done
+set +x
 
     echo '  output log of each job'
     for h in "$@"; do
