@@ -50,8 +50,8 @@ function k8s.add_new_content() {
     k8s.load_namespace 'hubot'
     k8s.load_namespace 'jenkins'
     k8s.load_namespace 'kowl'
-    k8s.load_namespace 'recipes'
     k8s.load_namespace 'smee'
+    k8s.load_namespace 'recipes'
     k8s.load_namespace 'versions'
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -76,8 +76,9 @@ function k8s.add_nodes_to_cluster() {
 function k8s.capture_config() {
 
     echo 'capturing config content'
-    microk8s config > kube.config
-    cp kube.config /home/bobb/.kube/config
+    local -r confFile='config.home'
+    microk8s config > "$confFile"
+    cp "$confFile" /home/bobb/.kube/config
     "$KUBECTL" api-versions ||: > ./api-api-versions.txt
     "$KUBECTL" api-resources -o wide ||: > ./api-resources.txt
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -89,7 +90,7 @@ function k8s.capture_ips_for_gui() {
 
     echo 'capturing IPs for GUI'
     "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
-    scp services_ips.json s3:production/workspace.production/www/
+    scp services_ips.json s3.ubuntu.home:production/workspace.production/www/
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
@@ -204,7 +205,8 @@ function k8s.dump_apis() {
 # -----------------------------------------------------------------------------------
 function k8s.enable_microk8s_modules() {
 
-   local modules=('dashboard' 'dashboard-ingress' 'dns' 'fluentd' 'ingress' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'prometheus' 'storage' 'helm3' 'rbac')
+   # be careful with order
+   local modules=('storage' 'dns' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'ingress' 'dashboard' 'dashboard-ingress' 'prometheus' 'helm3' 'fluentd')
 
     echo 'enable microk8s modules'
     for module in "${modules[@]}"; do
@@ -420,18 +422,17 @@ function k8s.reinit_nodes() {
 
     echo 'reinit each node'
 
-    local -r script='/tmp/reinit'
+    local -r REMOTE='/tmp/reinit'
     function reinitstall.remote() {
 
         local -r h="${1:?}"
-        local -r script="${1:?}"
 
         printf '%s starting %s\n' "$(date -Ins)" "$h"
-        k8s.run scp "$SCRIPT" "$h:$script"
-        ssh "$h" "chmod 755 $script"
-        k8s.run ssh "$h" "sudo '$script'"
+        k8s.run scp "$SCRIPT" "$h:$REMOTE"
+        ssh "$h" "chmod 755 $REMOTE"
+        k8s.run ssh "$h" "sudo '$REMOTE'"
         k8s.logElapsed "${h}"
-        ssh "$h" "[ -e '$script' ] && rm '$script'"
+        ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
     k8s.runInParallel 'reinitstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
@@ -480,11 +481,11 @@ function k8s.runInParallel() {
 
     echo "start $# copies of $script"
     for h in "$@"; do
-      ( k8s.run ssh "$h" "$script" ) &> "/tmp/$h.log" &
+      ( k8s.run "$script" "$h" ) &> "/tmp/$h.log" &
     done
 
     echo '  wait for all jobs to complete'
-    while [ "$(jobs)" ]; do
+    while [ "$(jobs -r -p)" ]; do
         wait
     done
 

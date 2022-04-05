@@ -6,7 +6,7 @@
     - files:
         - "/etc/prometheus/configmaps/additional-targets/http-targets.json"
   relabel_configs:
-  - source_labels:
+  - source_labels:  [__address__]
     separator: ':'
     replacement: $1
     targetLabel: instance

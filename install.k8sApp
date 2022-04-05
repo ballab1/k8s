@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # declarations of MUST HAVE globals
-PROGRAM_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+PROGRAM_DIR='/home/bobb/GIT/k8s'
 BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
 
 source "${PROGRAM_DIR}/k8s.bashlib"
