@@ -6,11 +6,10 @@ function main() {
     :> elapsed.times.txt
 
     sudo usermod -a -G microk8s "$USER"
-    mkdir -p /home/bobb/.kube
-    sudo chown -f -R "$USER" /home/bobb/.kube
 
     k8s.reinit_nodes
     k8s.add_nodes_to_cluster
+    k8s.set_config
     k8s.enable_microk8s_modules
     k8s.customize_content
     k8s.add_new_content
@@ -23,7 +22,7 @@ function main() {
 # -----------------------------------------------------------------------------------
 
 # declarations of MUST HAVE globals
-PROGRAM_DIR='/home/bobb/GIT/k8s'
+PROGRAM_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
 
 source "${PROGRAM_DIR}/k8s.bashlib"
