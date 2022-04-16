@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: hubot
+  namespace: hubot
+  labels:
+    app.kubernetes.io/component: hubot
+    app.kubernetes.io/name: hubot
+spec:
+  ports:
+    - name: https
+      protocol: TCP
+      port: 80
+      targetPort: hubot 
+  selector:
+    app.kubernetes.io/component: hubot
+    app.kubernetes.io/name: hubot
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}
