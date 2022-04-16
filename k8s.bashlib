@@ -50,8 +50,8 @@ function k8s.add_new_content() {
     k8s.load_namespace 'hubot'
     k8s.load_namespace 'jenkins'
     k8s.load_namespace 'kowl'
-    k8s.load_namespace 'smee'
     k8s.load_namespace 'recipes'
+    k8s.load_namespace 'smee'
     k8s.load_namespace 'versions'
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -61,12 +61,17 @@ function k8s.add_new_content() {
 function k8s.add_nodes_to_cluster() {
 
     echo 'join nodes into cluster'
-    local cmd
-    for h in {6..8}; do
-        cmd="$(sudo microk8s add-node | grep '10.3.1.14' | head -1)"
-        echo "ssh s$h '$cmd'"
-        k8s.run ssh "s$h" "sudo $cmd"
-        k8s.run ssh "s$h" "microk8s status --wait-ready"
+    local cmd h ip
+    
+    # get our local ip4 address
+    ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
+
+    # add nodes to cluster
+    for h in s{6..8}.ubuntu.home; do
+        cmd="$(sudo microk8s add-node | grep "$ip" | head -1)"
+        echo "ssh $h '$cmd'"
+        k8s.run ssh "$h" "sudo $cmd"
+        k8s.run ssh "$h" "microk8s status --wait-ready"
     done
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
@@ -76,9 +81,6 @@ function k8s.add_nodes_to_cluster() {
 function k8s.capture_config() {
 
     echo 'capturing config content'
-    local -r confFile='config.home'
-    microk8s config > "$confFile"
-    cp "$confFile" /home/bobb/.kube/config
     "$KUBECTL" api-versions ||: > ./api-api-versions.txt
     "$KUBECTL" api-resources -o wide ||: > ./api-resources.txt
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -90,7 +92,7 @@ function k8s.capture_ips_for_gui() {
 
     echo 'capturing IPs for GUI'
     "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
-    scp services_ips.json s3.ubuntu.home:production/workspace.production/www/
+    scp services_ips.json s3:production/workspace.production/www/
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
@@ -146,14 +148,13 @@ function k8s.customize_content() {
     k8s.run "$KUBECTL" patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
 
     k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.5"}]}}}}'
-#    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"grafana/grafana:7.5.4"}]}}}}'
     k8s.run "$KUBECTL" patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
 
     k8s.load_namespace 'microk8s'
     k8s.load_namespace 'prometheus'
-    "$KUBECTL" patch Prometheus/k8s -n monitoring --patch-file=./production/Prometheus.k8s.yml --type='merge'
+    k8s.run "$KUBECTL" patch Prometheus/k8s -n monitoring --patch-file=./production/Prometheus.k8s.yml --type='merge'
 
 #    k8s.run "$KUBECTL" create -f ./production/local-hd.StorageClass.yml
 #    k8s.run "$KUBECTL" create -f ./production/s5-local.PersistentVolume.yml
@@ -205,14 +206,14 @@ function k8s.dump_apis() {
 # -----------------------------------------------------------------------------------
 function k8s.enable_microk8s_modules() {
 
-   # be careful with order
-   local modules=('storage' 'dns' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'ingress' 'dashboard' 'dashboard-ingress' 'prometheus' 'helm3' 'fluentd')
+   local modules=('dashboard' 'dashboard-ingress' 'dns' 'fluentd' 'ingress' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'prometheus' 'storage' 'helm3') # 'rbac'
 
     echo 'enable microk8s modules'
     for module in "${modules[@]}"; do
         k8s.run sudo microk8s enable "$module" ||:
     done
     k8s.run microk8s status --wait-ready
+    k8s.run sudo iptables --flush
     k8s.run sudo iptables -P FORWARD ACCEPT
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
@@ -313,8 +314,8 @@ function add_registries() {
     cat << "REGISTRY"
        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."s2.ubuntu.home:5000"]
          endpoint = ["http://s2.ubuntu.home:5000"]
-       [plugins."io.containerd.grpc.v1.cri".registry.mirrors."10.3.1.12:5000"]
-        endpoint = ["http://10.3.1.12:5000"] 
+       [plugins."io.containerd.grpc.v1.cri".registry.mirrors."10.3.1.9:5000"]
+        endpoint = ["http://10.3.1.9:5000"] 
 REGISTRY
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -324,7 +325,7 @@ function create_registry_defs() {
     local version="${2:-}"
     local config_path="${SNAP_DATA}/args/certs.d"
 
-    for reg in "http://s2.ubuntu.home:5000" "http://10.3.1.12:5000"; do
+    for reg in "http://s2.ubuntu.home:5000" "http://10.3.1.9:5000"; do
         local host="${reg#*//}"
         run mkdir -p "${config_path}/$host"
         cat << REGISTRY > "${config_path}/${host}/hosts.toml"
@@ -423,7 +424,7 @@ function k8s.reinit_nodes() {
     echo 'reinit each node'
 
     local -r REMOTE='/tmp/reinit'
-    function reinitstall.remote() {
+    function reinstall.remote() {
 
         local -r h="${1:?}"
 
@@ -435,7 +436,7 @@ function k8s.reinit_nodes() {
         ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
-    k8s.runInParallel 'reinitstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
+    k8s.runInParallel 'reinstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
     rm "$SCRIPT"
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -495,6 +496,29 @@ function k8s.runInParallel() {
         cat "/tmp/$h.log"
         rm "/tmp/$h.log"
     done
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.set_config() {
+
+    echo 'setting kubectl config'
+    local -r HOST="$(hostname -f)"
+    local -r CONFIG_FILE="$(pwd)/config.home"
+    microk8s config > "$CONFIG_FILE"
+
+
+    function set_k8s_config() {
+        local -r h="${1:?}"
+        echo "setting k8s config on $h"
+        mkdir -p /home/bobb/.kube
+        scp "${HOST}:$CONFIG_FILE" /home/bobb/.kube/config
+        chown bobb:users -R /home/bobb/.kube
+    }
+
+    k8s.runInParallel 'set_k8s_config' 's3.ubuntu.home' 's4.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
+
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
