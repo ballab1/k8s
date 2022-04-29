@@ -1,0 +1,76 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: jenkins_exporter
+  namespace: jenkins_exporter
+  labels:
+    app.kubernetes.io/component: jenkins_exporter
+    app.kubernetes.io/name: jenkins_exporter
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: jenkins_exporter
+      app.kubernetes.io/name: jenkins_exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: jenkins_exporter
+        app.kubernetes.io/name: jenkins_exporter
+    spec:
+      volumes:
+        - name: jenkins_exporter-storage
+          emptyDir: {}
+      containers:
+        - name: jenkins_exporter
+          image: s2.ubuntu.home:5000/thirdparty/jenkins_exporter:51cc4b5
+          env:
+            - name: JENKINS_SERVER
+              value: https://s3.ubuntu.home/jenkins 
+            - name: VIRTUAL_PORT
+              value: 9118
+            - name: JENKINS_USER
+              value: bobb
+            - name: JENKINS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                   name: jenkins-password
+                   key: password 
+          ports:
+            - name: jenkins_exporter
+              containerPort: 9118
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: jenkins_exporter-storage
+              mountPath: /etc/jenkins_exporter
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: jenkins_exporter
+      serviceAccount: jenkins_exporter
+      securityContext:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

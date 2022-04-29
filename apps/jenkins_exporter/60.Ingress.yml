@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins_exporter-ingress
+  namespace: jenkins_exporter
+  annotations:
+    kubernetes.io/ingress.class: public
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  defaultBackend:
+    service:
+      name: jenkins_exporter
+      port:
+        number: 80
+  rules:
+  - host: "jenkins_exporter.k8s.home"
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: jenkins_exporter
+              port:
+                number: 80

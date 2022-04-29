@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: jenkins_exporter
+  namespace: jenkins_exporter
+  labels:
+    app.kubernetes.io/component: jenkins_exporter
+    app.kubernetes.io/name: jenkins_exporter
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: jenkins_exporter
+  selector:
+    app.kubernetes.io/component: jenkins_exporter
+    app.kubernetes.io/name: jenkins_exporter
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

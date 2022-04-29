@@ -21,14 +21,19 @@ spec:
         app.kubernetes.io/name: kowl
     spec:
       volumes:
+        - name: kowl-config
+          configMap:
+            name: kowl-config
+            items:
+            - key: kowl.yml
+              path: kowl.yml
         - name: kowl-storage
           emptyDir: {}
       containers:
         - name: kowl
           image: s2.ubuntu.home:5000/thirdparty/kowl:v1.4.0
-          env:
-            - name: KAFKA_BROKERS
-              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.ubuntu.home:9092'
+          args:
+            - '-config.filepath=/etc/kowl/kowl.yml'
           ports:
             - name: http
               containerPort: 8080
@@ -41,8 +46,9 @@ spec:
               cpu: 100m
               memory: 100Mi
           volumeMounts:
-            - name: kowl-storage
-              mountPath: /etc/kowl
+            - name: kowl-config
+              mountPath: /etc/kowl/kowl.yml
+              subPath: kowl.yml
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent

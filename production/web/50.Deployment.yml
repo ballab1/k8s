@@ -1,44 +1,38 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: pgadmin4
-  namespace: pgadmin4
+  name: web
+  namespace: web
   labels:
-    app.kubernetes.io/component: pgadmin4
-    app.kubernetes.io/name: pgadmin4
+    app.kubernetes.io/component: web
+    app.kubernetes.io/name: web
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: pgadmin4
-      app.kubernetes.io/name: pgadmin4
+      app.kubernetes.io/component: web
+      app.kubernetes.io/name: web
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: pgadmin4
-        app.kubernetes.io/name: pgadmin4
+        app.kubernetes.io/component: web
+        app.kubernetes.io/name: web
     spec:
       volumes:
-        - name: pgadmin-storage
+        - name: var-storage
+          emptyDir: {} 
+        - name: run-storage
           emptyDir: {}
+        - name: web-storage
+          persistentVolumeClaim:
+             claimName: nas-web
       containers:
-        - name: pgadmin4
-          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:6.8
-          env:
-            - name: PGADMIN_DEFAULT_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: pgadmin4
-                  key: username
-            - name: PGADMIN_DEFAULT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: pgadmin4
-                  key: password
+        - name: web
+          image:  s2.ubuntu.home:5000/thirdparty/nginx:1.20.2
           ports:
-            - name: pgadmin4
+            - name: web
               containerPort: 80
               protocol: TCP
           resources:
@@ -49,8 +43,13 @@ spec:
               cpu: 100m
               memory: 100Mi
           volumeMounts:
-            - name: pgadmin-storage
-              mountPath: /var/lib/pgadmin/storage
+            - name: run-storage
+              mountPath: /var/run 
+            - name: var-storage
+              mountPath: /var/cache/nginx 
+            - name: web-storage
+              mountPath: /usr/share/nginx/html
+              subPath: web
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
@@ -62,8 +61,8 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: pgadmin4
-      serviceAccount: pgadmin4
+      serviceAccountName: web
+      serviceAccount: web
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate

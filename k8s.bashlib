@@ -46,13 +46,12 @@ function k8s.__init() {
 
 function k8s.add_new_content() {
 
+    local -a apps=( 'hubot' 'jenkins' 'kowl' 'recipes' 'smee' 'versions' 'zoonavigator' )
+
     echo 'adding new content'
-    k8s.load_namespace 'hubot'
-    k8s.load_namespace 'jenkins'
-    k8s.load_namespace 'kowl'
-    k8s.load_namespace 'recipes'
-    k8s.load_namespace 'smee'
-    k8s.load_namespace 'versions'
+    for app in "${apps[@]}"; do
+        k8s.load_namespace 
+    done
 
     k8s.logElapsed "${FUNCNAME[0]}"
 }
@@ -67,7 +66,7 @@ function k8s.add_nodes_to_cluster() {
     ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
 
     # add nodes to cluster
-    for h in s{6..8}.ubuntu.home; do
+    for h in s1.ubuntu.home s{6..8}.ubuntu.home; do
         cmd="$(sudo microk8s add-node | grep "$ip" | head -1)"
         echo "ssh $h '$cmd'"
         k8s.run ssh "$h" "sudo $cmd"
@@ -90,9 +89,12 @@ function k8s.capture_config() {
 # -----------------------------------------------------------------------------------
 function k8s.capture_ips_for_gui() {
 
+   local ipFile='services_ips.json'
+
     echo 'capturing IPs for GUI'
-    "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > services_ips.json
-    scp services_ips.json s3:production/workspace.production/www/
+    "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > "$ipFile"
+    scp "$ipFile" s3:production/workspace.production/www/
+#    cp "$ipFile" /mnt/k8s/web/
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0
 }
@@ -295,7 +297,7 @@ function k8s.onexit() {
 
     find /tmp -maxdepth 1 -mindepth 1 -type f \( -name 'ssh.s?.txt' -or -name 'tmp*' \) -delete
     if [ "${SCRIPT:-}" ]; then
-        for h in s{5..8}.ubuntu.home; do
+        for h in s1.ubuntu.home s{5..8}.ubuntu.home; do
             ssh "$h" "[ -e '$SCRIPT' ] && rm '$SCRIPT'"
         done
     fi
@@ -436,7 +438,7 @@ function k8s.reinit_nodes() {
         ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
-    k8s.runInParallel 'reinstall.remote' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
+    k8s.runInParallel 'reinstall.remote' 's1.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
     rm "$SCRIPT"
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -517,7 +519,7 @@ function k8s.set_config() {
         chown bobb:users -R /home/bobb/.kube
     }
 
-    k8s.runInParallel 'set_k8s_config' 's3.ubuntu.home' 's4.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
+    k8s.runInParallel 'set_k8s_config' 's1.ubuntu.home' 's3.ubuntu.home' 's4.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
 
     k8s.logElapsed "${FUNCNAME[0]}"
     return 0

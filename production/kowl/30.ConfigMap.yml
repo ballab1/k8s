@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kowl-config
+  namespace: kowl
+  labels:
+    k8s-app: kowl
+data:
+  kowl.yml: | 
+    kafka:
+      brokers:
+        - s3.ubuntu.home:9092
+        - s4.ubuntu.home:9092
+        - s8.ubuntu.home:9092    
+      clientId: kowl 
