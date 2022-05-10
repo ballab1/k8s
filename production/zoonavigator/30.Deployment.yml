@@ -25,7 +25,7 @@ spec:
           image: s2.ubuntu.home:5000/thirdparty/zoonavigator:1.1.2
           env:
             - name: CONNECTION_MYZK_CONN
-              value: 's3.ubuntu.home:2181,s4.ubuntu.home:2181,s8.ubuntu.home:2181'
+              value: 's3.ubuntu.home:2181,s4.ubuntu.home:2181,s6.ubuntu.home:2181'
 #            - name: AUTO_CONNECT_CONNECTION_STRING
 #              value: MYZK
           ports:

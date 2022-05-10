@@ -1,5 +1,8 @@
 #!/bin/echo 'This script cannot be executabled directly. Please source from another script'
 
+GRAFANA_VERSION="8.5.2"
+KUBERNETES_DASHBOARD_VERSION="2.5.1"
+
 #----------------------------------------------------------------------------------------------
 #  functions for 'k8s.app'
 #---------------------------------------------------------------------------------------------- 
@@ -47,7 +50,7 @@ function k8s.__init() {
 function k8s.add_new_content() {
 
     local -a apps=( 'hubot' 'jenkins' 'kowl' 'recipes' 'smee' 'versions' 'zoonavigator' )
-
+=
     echo 'adding new content'
     for app in "${apps[@]}"; do
         k8s.load_namespace 
@@ -147,9 +150,11 @@ function k8s.customize_content() {
 
     k8s.run "$KUBECTL" patch service kibana-logging -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service kubernetes-dashboard -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run "$KUBECTL" patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v2.5.0"}]}}}}'
+    k8s.run "$KUBECTL" patch deployment kubernetes-dashboard -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","image":"kubernetesui/dashboard:v'${KUBERNETES_DASHBOARD_VERSION}'"}]}}}}'
 
-    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:8.4.5"}]}}}}'
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"metadata":{"labels":{"app.kubernetes.io/version":"'${GRAFANA_VERSION}'"}}}'
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/thirdparty/grafana:'${GRAFANA_VERSION}'"}]}}}}'
+    k8s.run "$KUBECTL" patch deployment grafana -n monitoring -p '{"spec":{"template":{"metadata":{"app.kubernetes.io/version":"'${GRAFANA_VERSION}'"}}}}'
     k8s.run "$KUBECTL" patch service grafana -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service alertmanager-main -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'
     k8s.run "$KUBECTL" patch service prometheus-k8s -n monitoring -p '{"spec":{"type":"LoadBalancer"}}'

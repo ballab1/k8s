@@ -21,17 +21,25 @@ spec:
         app.kubernetes.io/component: cmak
         app.kubernetes.io/name: cmak
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: s1.ubuntu.home
       volumes:
         - name: cmak
           configMap:
             name: cmak
+        - name: logger
+          configMap:
+            name: logger
       containers:
         - name: cmak
           tty: true
           command:
             - /usr/local/cmak/bin/cmak
-            - "-Dconfig.file=/usr/local/cmak/application.conf"
-          image: s2.ubuntu.home:5000/alpine/kafka-manager/3.0.0.5:dev
+            - "-Dconfig.file=/usr/local/cmak/conf/application.conf"
+          image: s2.ubuntu.home:5000/alpine/kafka-manager/3.0.0.6:dev
+          env:
+            - name: JMX_PORT
+              value: '7201'
           ports:
             - name: cmak
               containerPort: 9000
@@ -45,8 +53,11 @@ spec:
               memory: 100Mi
           volumeMounts:
             - name: cmak
-              mountPath: /usr/local/cmak/application.conf
+              mountPath: /usr/local/cmak/conf/application.conf
               subPath: application.conf         
+            - name: logger
+              mountPath: /usr/local/cmak/conf/logback.xml
+              subPath: logger.xml 
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
@@ -57,10 +68,6 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: cmak
       serviceAccount: cmak
-      securityContext:
-        runAsUser: 1000
-        runAsNonRoot: false
-        fsGroup: 1000
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate

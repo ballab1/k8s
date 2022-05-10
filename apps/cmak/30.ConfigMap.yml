@@ -29,7 +29,7 @@ data:
       
       # Settings prefixed with 'kafka-manager.' will be deprecated, use 'cmak.' instead.
       # https://github.com/yahoo/CMAK/issues/713
-      cmak.zkhosts="s3.ubuntu.home:2181,s4.ubuntu.home:2181,s8.ubuntu.home:2181"
+      cmak.zkhosts="s3.ubuntu.home:2181,s4.ubuntu.home:2181,s6.ubuntu.home:2181"
       
       pinned-dispatcher.type="PinnedDispatcher"
       pinned-dispatcher.executor="thread-pool-executor"

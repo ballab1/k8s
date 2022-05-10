@@ -11,7 +11,7 @@ data:
     
     # Multi zookeeper&kafka cluster list -- The client connection address of the Zookeeper cluster is set here
     efak.zk.cluster.alias=cluster1
-    cluster1.zk.list=s3.ubuntu.home:2181,s4.ubuntu.home:2181,s8.ubuntu.home:2181
+    cluster1.zk.list=s3.ubuntu.home:2181,s4.ubuntu.home:2181,s6.ubuntu.home:2181
     #cluster2.zk.list=xdn1:2181,xdn2:2181,xdn3:2181
     
     # Add zookeeper acl

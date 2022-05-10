@@ -11,5 +11,5 @@ data:
       brokers:
         - s3.ubuntu.home:9092
         - s4.ubuntu.home:9092
-        - s8.ubuntu.home:9092    
+        - s6.ubuntu.home:9092    
       clientId: kowl 
