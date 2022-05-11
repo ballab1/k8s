@@ -21,18 +21,17 @@ spec:
         app.kubernetes.io/name: smee
     spec:
       volumes:
-        - name: smee
+        - name: smee-root 
           configMap:
-            name: smee
+            name: smee-root 
+        - name: smee-server 
+          configMap:
+            name: smee-server 
       containers:
         - name: smee
           env:
             - name: SMEE_TARGET
-              value: http://s3.ubuntu.home 
-            - name: SMEE_PORT
-              value: '8070' 
-            - name: SMEE_PATH
-              value: /jenkins/generic-webhook-trigger/invoke 
+              value: http://s3.ubuntu.home:8070/jenkins/generic-webhook-trigger/invoke
             - name: SMEE_URL
               value: https://smee.io/F9gFiEeTza0Po4Rd
           image:  s2.ubuntu.home:5000/alpine/smee:dev
@@ -44,9 +43,13 @@ spec:
               cpu: 100m
               memory: 100Mi
           volumeMounts:
-            - name: smee
-              mountPath: /etc/ssl/certs/soho-ball.pem
-              subPath: soho-ball.pem
+            - name: smee-root 
+              mountPath: /etc/ssl/certs/soho-ball-root.crt
+              subPath: soho-ball-root.crt
+              readOnly: false
+            - name: smee-server 
+              mountPath: /etc/ssl/certs/soho-ball-server.crt
+              subPath: soho-ball-server.crt
               readOnly: false
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
