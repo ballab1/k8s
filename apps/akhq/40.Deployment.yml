@@ -32,7 +32,7 @@ spec:
           image: s2.ubuntu.home:5000/thirdparty/akhq:0.20.0
           env:
             - name: KAFKA_BROKERS
-              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s8.ubuntu.home:9092'
+              value: 's3.ubuntu.home:9092,s4.ubuntu.home:9092,s6.ubuntu.home:9092'
             - name: MICRONAUT_CONFIG_FILES
               value: /app/conf/application.yml
             - name: JVM_OPTS_FILE
