@@ -1,4 +1,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: jenkins_exporter
+  name: jenkins-exporter
