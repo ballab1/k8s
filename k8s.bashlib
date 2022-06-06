@@ -634,3 +634,26 @@ function k8s.set_config() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.set_config() {
+
+    echo 'setting kubectl config'
+    local -r HOST="$(hostname -f)"
+    local -r CONFIG_FILE="$(pwd)/config.home"
+    microk8s config > "$CONFIG_FILE"
+
+
+    function set_k8s_config() {
+        local -r h="${1:?}"
+        echo "setting k8s config on $h"
+        mkdir -p /home/bobb/.kube
+        scp "${HOST}:$CONFIG_FILE" /home/bobb/.kube/config
+        chown bobb:users -R /home/bobb/.kube
+    }
+
+    k8s.runInParallel 'set_k8s_config' 's3.ubuntu.home' 's4.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
+
+    k8s.logElapsed "${FUNCNAME[0]}"
+    return 0
+}
+
+# -----------------------------------------------------------------------------------
