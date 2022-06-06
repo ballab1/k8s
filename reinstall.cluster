@@ -1,26 +1,5 @@
 #!/bin/bash
 
-# -----------------------------------------------------------------------------------
-function main() {
-
-    :> elapsed.times.txt
-
-    sudo usermod -a -G microk8s "$USER"
-
-    k8s.reinit_nodes
-    k8s.add_nodes_to_cluster
-    k8s.set_config
-    k8s.enable_microk8s_modules
-    k8s.customize_content
-    k8s.add_new_content
-    k8s.generate_token
-    k8s.capture_config
-    k8s.capture_ips_for_gui
-    k8s.capture_status
-}
-
-# -----------------------------------------------------------------------------------
-
 # declarations of MUST HAVE globals
 PROGRAM_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
@@ -29,4 +8,4 @@ source "${PROGRAM_DIR}/k8s.bashlib"
 k8s.__init
 
 cd /home/bobb/workspace
-main "$@" | tee "${LOGFILE}"
+k8s.reinstall_cluster "$@" | tee "${LOGFILE}"

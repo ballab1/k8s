@@ -1,0 +1,14 @@
+{
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "kubernetes-dashboard",
+            "image": "kubernetesui/dashboard:v${KUBERNETES_DASHBOARD_VERSION}"
+          }
+        ]
+      }
+    }
+  }
+}
