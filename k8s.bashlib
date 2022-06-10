@@ -1,11 +1,5 @@
 #!/bin/echo 'This script cannot be executabled directly. Please source from another script'
 
-export GRAFANA_VERSION="8.5.2"
-export K8S_VERSION="1.24"
-export KUBERNETES_DASHBOARD_VERSION="2.5.1"
-export K8S_NODES=( 's1.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home' )
-export SNAP='/var/snap/microk8s/current'
-
 #----------------------------------------------------------------------------------------------
 #  functions for 'k8s.app'
 #---------------------------------------------------------------------------------------------- 
@@ -32,12 +26,17 @@ function k8s.__init() {
     JSONNET_IMAGE='s2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
 
     # source other bashlibs
-
     # shellcheck disable=SC1090
     source "${BASHLIB_DIR}/trap.bashlib"
     # shellcheck disable=SC1090
     source "${BASHLIB_DIR}/timer.bashlib"
     trap k8s.onexit EXIT
+
+
+    # import our setup configuration
+    local configYaml="$(pwd)/k8s.bashlib.yml"
+    [ -f "$configYaml" ] || configYaml="${PROGRAM_DIR}/k8s.bashlib.yml"
+    k8s.parse_config "$(python3 -c 'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' < "$configYaml")"
 
     # shellcheck disable=SC2034
     DEBUG=0
@@ -50,7 +49,7 @@ function k8s.__init() {
 # ----------------------------------------------------------------------------------- 
 function k8s.add_new_content() {
 
-    local -a apps=( 'hubot' 'jenkins' 'kowl' 'recipes' 'smee' 'versions' 'web' 'zoonavigator' "microk8s.${K8S_VERSION}" 'prometheus' )
+    local -a apps="$K8S_APPS"
 
     echo 'adding new content'
     for app in "${apps[@]}"; do
@@ -71,7 +70,8 @@ function k8s.add_nodes_to_cluster() {
     ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
 
     # add nodes to cluster
-    for h in s1.ubuntu.home s{6..8}.ubuntu.home; do
+    for h in "${K8S_NODES[@]}"; do
+        [ "$h" = "$(hostname -f)" ] && continue
         cmd="$(sudo microk8s add-node | grep "$ip" | head -1)"
         echo "ssh $h '$cmd'"
         k8s.run ssh "$h" "$cmd"
@@ -108,7 +108,6 @@ function k8s.capture_ips_for_gui() {
 function k8s.capture_status() {
 
     echo 'capturing status'
-    sudo snap alias microk8s-kubectl kubectl
     k8s.run "$KUBECTL" cluster-info
     k8s.run "$KUBECTL" get nodes
     k8s.run "$KUBECTL" get all -A
@@ -146,9 +145,6 @@ function k8s.createSecretsForApp() {
 function k8s.customize_content() {
 
     echo 'customizing content'
-    k8s.run "$KUBECTL" apply -f ./production/corends.ConfigMap.yml
-    k8s.run "$KUBECTL" apply -f ./production/nginx-ingress.DaemonSet.yml
-
     local ns object
     while read -r patchFile;do
         # extract namespace from patchFile name
@@ -158,6 +154,7 @@ function k8s.customize_content() {
         object="$(basename "${patchFile%.*}")"
         object="${object#*.}"
         object="${object//.//}"
+        [ "${object:-}" = 'daemonset' ] && object='daemonset.app'
         # patch object
         k8s.run "$KUBECTL" patch "$object" -n "$ns" --patch-file=<(envsubst < "$patchFile") --type='merge'
     done < <(find "production/patches.${K8S_VERSION}" -mindepth 1 -maxdepth 1 -type f -name '*.json') 
@@ -204,12 +201,7 @@ function k8s.dump_apis() {
 function k8s.enable_microk8s_modules() {
 
     echo 'enable microk8s modules'
-    local -a modules
-    case "$K8S_VERSION" in
-      1.23)  modules=( 'ingress' 'dns' 'fluentd' 'storage' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'prometheus' 'dashboard' 'dashboard-ingress' 'helm3' ) ;;
-      1.24)  modules=( 'ingress' 'dns' 'storage' 'hostpath-storage' 'metallb:192.168.0.1-192.168.0.100' 'metrics-server' 'prometheus' 'helm3' );;
-      *)     retrn 1;;
-    esac
+    local -a modules="$K8S_MODULES"
 
     for module in "${modules[@]}";do 
         k8s.run sudo microk8s enable "$module" ||:
@@ -237,6 +229,21 @@ function k8s.generate_token() {
         k8s.run "$KUBECTL" -n kube-system describe secret "$ref" | tee -a "$token_file"
         break
     done
+    # if 
+    if [ -s "$token_file" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
+        kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: default-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: default
+type: kubernetes.io/service-account-token
+EOF
+        sleep 3
+        k8s.generate_token
+    fi
     [ -s "$token_file" ] || rm "$token_file"
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -404,6 +411,7 @@ function main() {
 #    microk8s disable ha-cluster --force ||:
     microk8s.reset --destroy-storage ||:
     run snap remove microk8s
+    [ -d ~/snap/microk8s ] && rm -rf ~/snap/microk8s
 
     # create fresh dir for comfig
     [ -d "${homeDir}/.kube" ] && rm -rf "${homeDir}/.kube"
@@ -411,6 +419,7 @@ function main() {
     sudo chown -R "${uid}:${gid}" "${homeDir}/.kube"
 
     run snap install microk8s --channel "${version}/stable" --classic
+    sudo snap alias microk8s-kubectl kubectl
 
     if [ -e "${SNAP}/credentials/client.config" ]; then
         run cp "${SNAP}/credentials/client.config" "$LOCAL_CONFIG"
@@ -478,6 +487,28 @@ main "\$(hostname)" "$K8S_VERSION" "$USER"
 EOF
 }
 
+# ----------------------------------------------------------------------------------- 
+function k8s.parse_config() {
+
+    local -r json="${1:?}"
+
+    local key val cmdJson
+    while read -r key; do
+        val="$(jq --compact-output --monochrome-output --raw-output '.'"$key"'|if type == "object" then null else . end' <<< "$json")"
+        if [ "$val" != 'null' ]; then
+            eval export "$key"="$val"
+            readonly "$key"
+        elif [ "$key" == 'DEV' ] && [ "$(hostname -f)" = 's6.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
+            cmdJson="$(jq --compact-output --monochrome-output '.DEV' <<< "$json")"
+        elif [ "$key" == 'PROD' ] && [ "$(hostname -f)" = 's5.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
+            cmdJson="$(jq --compact-output --monochrome-output '.PROD' <<< "$json")"
+        elif [ "$key" == "${VERSION:-}" ] && [ -z "${cmdJson:-}" ]; then
+            cmdJson="$(jq --compact-output --monochrome-output '.'"$key" <<< "$json")"
+        fi
+    done < <(jq --compact-output --monochrome-output --raw-output '.|keys[]' <<< "$json") 
+    [ -z "${cmdJson:-}" ] || k8s.parse_config "$cmdJson"
+}
+
 # -----------------------------------------------------------------------------------
 function k8s.removeApp() {
 
@@ -528,9 +559,10 @@ function k8s.reinstall_cluster() {
     sudo usermod -a -G microk8s "$USER"
 
     k8s.reinit_nodes
-    k8s.add_nodes_to_cluster
+exit
     k8s.set_config
     k8s.enable_microk8s_modules
+exit
     k8s.customize_content
     k8s.add_new_content
     k8s.generate_token
@@ -599,7 +631,6 @@ function k8s.set_config() {
 
     echo 'setting kubectl config'
     local -r HOST="$(hostname -f)"
-    local -r CONFIG_FILE="$(pwd)/config.home"
 
     local -r inf="$(getent passwd "$USER")"
     local -r uid="$(cut -d ':' -f 3 <<< "$inf")"
@@ -610,12 +641,17 @@ function k8s.set_config() {
     sudo mkdir -p "${homeDir}/.kube"
     sudo chown -f -R "${uid}:${gid}" "${homeDir}/.kube"
 
-    if [ -e "${SNAP}/credentials/client.config" ]; then
-        k8s.run cp "${SNAP}/credentials/client.config" "$LOCAL_CONFIG"
+    local cfgFile="${SNAP}/credentials/client.config"
+    local ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
+    local -r CONFIG_FILE="$(pwd)/config.${K8S_CLUSTERNAME}.home"
+
+    if [ -e "$cfgFile" ]; then
+        sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$cfgFile"
+        k8s.run cp "$cfgFile" "$LOCAL_CONFIG"
     else
         k8s.run microk8s config > "$LOCAL_CONFIG"
+        sed -i -e "s|127.0.0.1|${ip}|g" "$LOCAL_CONFIG"
     fi
-    sed -i -e "s|127.0.0.1|$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')|g" "$LOCAL_CONFIG"
     cp "$LOCAL_CONFIG" "$CONFIG_FILE"
 
     function set_k8s_config() {
@@ -627,32 +663,9 @@ function k8s.set_config() {
         sudo usermod -a -G microk8s "$(getent passwd "$uid"|cut -d ':' -f 1)"
     }
 
-    k8s.runInParallel 'set_k8s_config' "${K8S_NODES[@]}" 's3.ubuntu.home' 's4.ubuntu.home'
+    k8s.runInParallel 'set_k8s_config' "${K8S_NODES[@]}"
 
     k8s.logElapsed "${FUNCNAME[0]}"
-}
-
-# -----------------------------------------------------------------------------------
-function k8s.set_config() {
-
-    echo 'setting kubectl config'
-    local -r HOST="$(hostname -f)"
-    local -r CONFIG_FILE="$(pwd)/config.home"
-    microk8s config > "$CONFIG_FILE"
-
-
-    function set_k8s_config() {
-        local -r h="${1:?}"
-        echo "setting k8s config on $h"
-        mkdir -p /home/bobb/.kube
-        scp "${HOST}:$CONFIG_FILE" /home/bobb/.kube/config
-        chown bobb:users -R /home/bobb/.kube
-    }
-
-    k8s.runInParallel 'set_k8s_config' 's3.ubuntu.home' 's4.ubuntu.home' 's5.ubuntu.home' 's6.ubuntu.home' 's7.ubuntu.home' 's8.ubuntu.home'
-
-    k8s.logElapsed "${FUNCNAME[0]}"
-    return 0
 }
 
 # -----------------------------------------------------------------------------------

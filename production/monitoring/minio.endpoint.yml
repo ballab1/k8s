@@ -1,0 +1,11 @@
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: "external-minio-endpoint"
+  namespace: monitoring
+subsets: 
+  - addresses:
+      - ip: 10.3.1.8 
+    ports:
+      - port: 9000 
+        name: minio

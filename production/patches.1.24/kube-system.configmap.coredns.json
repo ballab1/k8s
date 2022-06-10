@@ -1,0 +1,5 @@
+{
+  "data": {
+    "Corefile": ".:53 {\n    errors\n    health {\n      lameduck 5s\n    }\n    ready\n    log . {\n      class error\n    }\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    prometheus :9153\n    forward . 10.3.1.4\n    cache 30\n    loop\n    reload\n    loadbalance\n}\n"
+  }
+}
