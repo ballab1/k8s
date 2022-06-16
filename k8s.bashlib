@@ -35,7 +35,9 @@ function k8s.__init() {
 
     # import our setup configuration
     local configYaml="$(pwd)/k8s.bashlib.yml"
+    [ -f "$configYaml" ] || configYaml="$(pwd)/k8s.bashlib.yaml"
     [ -f "$configYaml" ] || configYaml="${PROGRAM_DIR}/k8s.bashlib.yml"
+    [ -f "$configYaml" ] || configYaml="${PROGRAM_DIR}/k8s.bashlib.yaml"
     k8s.parse_config "$(python3 -c 'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' < "$configYaml")"
 
     # shellcheck disable=SC2034
@@ -145,11 +147,14 @@ function k8s.createSecretsForApp() {
 function k8s.customize_content() {
 
     echo 'customizing content'
+    local -r names="$("$KUBECTL" get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"
     local ns object
     while read -r patchFile;do
         # extract namespace from patchFile name
         ns="$(basename "${patchFile}")"
         ns="${ns%%.*}"
+        grep -qE "^${ns}\$" <<< "$names" || continue
+
         # extract obect from patchFile name
         object="$(basename "${patchFile%.*}")"
         object="${object#*.}"
@@ -492,19 +497,30 @@ function k8s.parse_config() {
 
     local -r json="${1:?}"
 
-    local key val cmdJson
+    local cmdJson key val
     while read -r key; do
-        val="$(jq --compact-output --monochrome-output --raw-output '.'"$key"'|if type == "object" then null else . end' <<< "$json")"
-        if [ "$val" != 'null' ]; then
-            eval export "$key"="$val"
-            readonly "$key"
-        elif [ "$key" == 'DEV' ] && [ "$(hostname -f)" = 's6.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
-            cmdJson="$(jq --compact-output --monochrome-output '.DEV' <<< "$json")"
-        elif [ "$key" == 'PROD' ] && [ "$(hostname -f)" = 's5.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
-            cmdJson="$(jq --compact-output --monochrome-output '.PROD' <<< "$json")"
-        elif [ "$key" == "${VERSION:-}" ] && [ -z "${cmdJson:-}" ]; then
-            cmdJson="$(jq --compact-output --monochrome-output '.'"$key" <<< "$json")"
-        fi
+        val="$(jq --compact-output --monochrome-output '.'"$key" <<< "$json")"
+        case "$(jq -r 'type' <<< "$val")" in
+          string)
+              eval export "$key"="$(jq -r '.' <<< "$val")"
+              readonly "$key"
+              ;;
+          array)
+              eval export "$key=( $(jq -r '.[]' <<< "$val") )"
+              readonly "$key"
+              ;;
+          object)
+              if [ "$key" == 'DEV' ] && [ "$(hostname -f)" = 's6.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
+                  cmdJson="$(jq --compact-output --monochrome-output '.DEV' <<< "$json")"
+              elif [ "$key" == 'PROD' ] && [ "$(hostname -f)" = 's5.ubuntu.home' ] && [ -z "${cmdJson:-}" ]; then
+                  cmdJson="$(jq --compact-output --monochrome-output '.PROD' <<< "$json")"
+              elif [ "$key" == "${VERSION:-}" ] && [ -z "${cmdJson:-}" ]; then
+                  cmdJson="$(jq --compact-output --monochrome-output '.'"$key" <<< "$json")"
+              fi
+              ;;
+          *)
+              echo "unrecognized type: $(jq -r 'type' <<< "$val")";;
+        esac
     done < <(jq --compact-output --monochrome-output --raw-output '.|keys[]' <<< "$json") 
     [ -z "${cmdJson:-}" ] || k8s.parse_config "$cmdJson"
 }
@@ -559,10 +575,8 @@ function k8s.reinstall_cluster() {
     sudo usermod -a -G microk8s "$USER"
 
     k8s.reinit_nodes
-exit
     k8s.set_config
     k8s.enable_microk8s_modules
-exit
     k8s.customize_content
     k8s.add_new_content
     k8s.generate_token
