@@ -51,11 +51,9 @@ function k8s.__init() {
 # ----------------------------------------------------------------------------------- 
 function k8s.add_new_content() {
 
-    local -a apps="$K8S_APPS"
-
     echo 'adding new content'
-    for app in "${apps[@]}"; do
-        k8s.run "$KUBECTL" create -f "production/${app}/" 
+    for app in "${K8S_APPS[@]}"; do
+        k8s.run "$KUBECTL" create -f "production/${app}/" ||: 
         sleep 30  # wait for initialization to complete 
     done
 
@@ -161,7 +159,7 @@ function k8s.customize_content() {
         object="${object//.//}"
         [ "${object:-}" = 'daemonset' ] && object='daemonset.app'
         # patch object
-        k8s.run "$KUBECTL" patch "$object" -n "$ns" --patch-file=<(envsubst < "$patchFile") --type='merge'
+        k8s.run "$KUBECTL" patch "$object" -n "$ns" --patch-file=<(envsubst < "$patchFile") --type='merge' ||:
     done < <(find "production/patches.${K8S_VERSION}" -mindepth 1 -maxdepth 1 -type f -name '*.json') 
 
     k8s.logElapsed "${FUNCNAME[0]}"
@@ -206,9 +204,8 @@ function k8s.dump_apis() {
 function k8s.enable_microk8s_modules() {
 
     echo 'enable microk8s modules'
-    local -a modules="$K8S_MODULES"
 
-    for module in "${modules[@]}";do 
+    for module in "${K8S_MODULES[@]}";do 
         k8s.run sudo microk8s enable "$module" ||:
     done
 
@@ -231,12 +228,14 @@ function k8s.generate_token() {
         [ "${ref:-}" ] && ref="$(awk '{print $1}' <<< "$ref")"
         # shellcheck disable=SC2181
         [[ "$?" != 0 || -z "${ref:-}" ]] && continue
-        k8s.run "$KUBECTL" -n kube-system describe secret "$ref" | tee -a "$token_file"
+        local result="$(k8s.run "$KUBECTL" -n kube-system describe secret "$ref" ||:)"
+        [ -z "${result:-}" ] && continue
+        echo "$result" > "$token_file"
         break
     done
     # if 
     if [ -s "$token_file" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
-        kubectl apply -f - <<EOF
+        "$KUBECTL" apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -424,7 +423,6 @@ function main() {
     sudo chown -R "${uid}:${gid}" "${homeDir}/.kube"
 
     run snap install microk8s --channel "${version}/stable" --classic
-    sudo snap alias microk8s-kubectl kubectl
 
     if [ -e "${SNAP}/credentials/client.config" ]; then
         run cp "${SNAP}/credentials/client.config" "$LOCAL_CONFIG"
@@ -439,6 +437,7 @@ function main() {
 
     echo 'add user to microk8s group'
     run sudo usermod -a -G microk8s "$user"
+    sudo snap alias microk8s-kubectl kubectl
 
 
     echo 'update k8s config and registry settings'
