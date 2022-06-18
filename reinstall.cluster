@@ -1,14 +1,29 @@
 #!/bin/bash
 
 # declarations of MUST HAVE globals
-PROGRAM_DIR='/home/bobb/GIT/k8s'
-BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
-
+PROGRAM_DIR=~/GIT/k8s
+PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
+LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
 {
-    source "${PROGRAM_DIR}/k8s.bashlib" 2>&1
-    k8s.__init                          2>&1
+    source "${PROGRAM_DIR}/k8s.bashlib"           2>&1
+    k8s.__init                                    2>&1
     cd /home/bobb/workspace
-    k8s.reinstall_cluster "$@"          2>&1
+
+    :> elapsed.times.txt
+
+    sudo usermod -a -G microk8s "$USER"
+
+    k8s.separator k8s.reinit_nodes                2>&1
+    k8s.separator k8s.add_nodes_to_cluster        2>&1
+    k8s.separator k8s.set_config		  2>&1
+    k8s.separator k8s.enable_microk8s_modules	  2>&1
+    k8s.separator k8s.customize_content		  2>&1
+    k8s.separator k8s.add_new_content		  2>&1
+    k8s.separator k8s.generate_token		  2>&1
+    k8s.separator k8s.capture_config		  2>&1
+    k8s.separator k8s.update_jenkins		  2>&1
+    k8s.separator k8s.capture_ips_for_gui	  2>&1
+    k8s.separator k8s.capture_status		  2>&1
 
 } | tee "${LOGFILE}"
 
