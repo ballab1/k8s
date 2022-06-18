@@ -17,13 +17,12 @@ function k8s.__init() {
 
     # declarations of MUST HAVE globals
     # shellcheck disable=SC2034
-    PROGRAM_DIR="${PROGRAM_DIR:-~/GIT/k8s}"
-    BASHLIB_DIR="${BASHLIB_DIR:-~/.bin/utilities/bashlib}"
-    PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
+    [ "${PROGRAM_DIR:-}" ] || PROGRAM_DIR=-~/GIT/k8s
+    [ "${BASHLIB_DIR:-}" ] || BASHLIB_DIR=~/.bin/utilities/bashlib
     # shellcheck disable=SC2034
-    LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
+    [ "${PROGRAM_NAME:-}" ] || PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
     # shellcheck disable=SC2034
-    JSONNET_IMAGE='s2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
+    [ "${JSONNET_IMAGE:-}" ] || JSONNET_IMAGE='s2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
 
     # source other bashlibs
     # shellcheck disable=SC1090
@@ -57,28 +56,28 @@ function k8s.add_new_content() {
         sleep 30  # wait for initialization to complete 
     done
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
 function k8s.add_nodes_to_cluster() {
 
     echo 'join nodes into cluster'
-    local cmd h ip
+    local cmd ip node
     
     # get our local ip4 address
     ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
 
     # add nodes to cluster
-    for h in "${K8S_NODES[@]}"; do
-        [ "$h" = "$(hostname -f)" ] && continue
+    for node in "${K8S_NODES[@]}"; do
+        [ "$node" = "$(hostname -f)" ] && continue
         cmd="$(sudo microk8s add-node | grep "$ip" | head -1)"
-        echo "ssh $h '$cmd'"
-        k8s.run ssh "$h" "$cmd"
-        k8s.run ssh "$h" "microk8s status --wait-ready"
+        echo "ssh $node '$cmd'"
+        k8s.run ssh "$node" "$cmd"
+        k8s.run ssh "$node" "microk8s status --wait-ready"
     done
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -88,7 +87,7 @@ function k8s.capture_config() {
     "$KUBECTL" api-versions ||: > ./api-api-versions.txt
     "$KUBECTL" api-resources -o wide ||: > ./api-resources.txt
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -101,7 +100,7 @@ function k8s.capture_ips_for_gui() {
     scp "$ipFile" s3:production/workspace.production/www/
 #    cp "$ipFile" /mnt/k8s/web/
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -114,11 +113,11 @@ function k8s.capture_status() {
 
 #    k8s.dump_apis
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.createApp() {
+function k8s.create_app() {
 
     [ "$#" -eq 0 ] && return 0
     local dir
@@ -128,7 +127,7 @@ function k8s.createApp() {
 } 
 
 # -----------------------------------------------------------------------------------
-function k8s.createSecretsForApp() {
+function k8s.create_secrets_for_apps() {
 
     local -r target="${1:?}"
     local -r certs="${2:-certs}"
@@ -146,7 +145,7 @@ function k8s.customize_content() {
 
     echo 'customizing content'
     local -r names="$("$KUBECTL" get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')"
-    local ns object
+    local ns object status
     while read -r patchFile;do
         # extract namespace from patchFile name
         ns="$(basename "${patchFile}")"
@@ -159,16 +158,20 @@ function k8s.customize_content() {
         object="${object//.//}"
         [ "${object:-}" = 'daemonset' ] && object='daemonset.app'
         # patch object
-        k8s.run "$KUBECTL" patch "$object" -n "$ns" --patch-file=<(envsubst < "$patchFile") --type='merge' ||:
+        k8s.run "$KUBECTL" patch "$object" -n "$ns" --patch-file=<(envsubst < "$patchFile") --type='merge' && status=$? || status=$?
+        if [ "$status" -ne 0 ]; then
+            printf '\x1b[31m**** ERROR: %s\x1b[0m\n' "$patchFile" >&2 
+            envsubst < "$patchFile"
+        fi
     done < <(find "production/patches.${K8S_VERSION}" -mindepth 1 -maxdepth 1 -type f -name '*.json') 
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
 function k8s.dump_apis() {
 
-   local -r dir_org="${1:-by_api}"
+   local -r dirOrg="${1:-by_api}"
 
     local mode object
     local -a modes=('wide' 'json' 'yaml')
@@ -176,18 +179,18 @@ function k8s.dump_apis() {
     mkdir -p apis
     rm -rf apis/*
 
-    if [ "$dir_org" != 'by_api' ]; then
+    if [ "$dirOrg" != 'by_api' ]; then
         for mode in "${modes[@]}"; do
             mkdir -p "apis/$mode"
         done
     fi
     while read -r object; do
         echo "  $object"
-        [ "$dir_org" = 'by_api' ] && mkdir -p "apis/${object}"
+        [ "$dirOrg" = 'by_api' ] && mkdir -p "apis/${object}"
         for mode in "${modes[@]}"; do
             declare ext="$mode"
             [ "$mode" = 'wide' ] && ext='txt'
-            if [ "$dir_org" = 'by_api' ]; then
+            if [ "$dirOrg" = 'by_api' ]; then
                 "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${object}/${mode}.$ext" ||:
             else
                 "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
@@ -197,7 +200,7 @@ function k8s.dump_apis() {
 
     "$KUBECTL" api-resources --sort-by=name --output wide > apis/api-resourses.txt
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -213,29 +216,28 @@ function k8s.enable_microk8s_modules() {
     k8s.run sudo iptables --flush
     k8s.run sudo iptables -P FORWARD ACCEPT
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
-
 
 # -----------------------------------------------------------------------------------
 function k8s.generate_token() {
 
     echo 'generating tokens.inf'
-    local token_file='tokens.inf'
-    :> "$token_file"
-    for token in default-token admin-user ; do
+    local tokecFile='tokens.inf'
+    :> "$tokecFile"
+    for token in 'default-token' 'admin-user' ; do
         local ref="$("$KUBECTL" -n kube-system get secret | grep "$token" ||:)"
         [ "${ref:-}" ] && ref="$(awk '{print $1}' <<< "$ref")"
         # shellcheck disable=SC2181
         [[ "$?" != 0 || -z "${ref:-}" ]] && continue
         local result="$(k8s.run "$KUBECTL" -n kube-system describe secret "$ref" ||:)"
         [ -z "${result:-}" ] && continue
-        echo "$result" > "$token_file"
+        echo "$result" > "$tokecFile"
         break
     done
 
     # do token file found, create one
-    if [ -z "$(< "$token_file")" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
+    if [ -z "$(< "$tokecFile")" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
         "$KUBECTL" apply -f - <<EOF
 apiVersion: v1
 kind: Secret
@@ -249,18 +251,18 @@ EOF
         sleep 3
         k8s.generate_token
     fi
-    [ "$(< "$token_file")" ] || (rm "$token_file" ||:)
+    [ "$(< "$tokecFile")" ] || (rm "$tokecFile" ||:)
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.installApp() {
+function k8s.install_app() {
 
     [ "$#" -eq 0 ] && return 0
 
-    k8s.removeApp "$@"
-    k8s.createApp "$@"
+    k8s.remove_app "$@"
+    k8s.create_app "$@"
     "$KUBECTL" get all
 } 
 
@@ -311,11 +313,11 @@ function k8s.load_namespace() {
         [ "${status:-0}" -ne 0 ] && exit
     done < <(find "production/${dir}" -type f | LC_ALL=C sort -n $direction)
     echo
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.logElapsed() {
+function k8s.log_elapsed() {
 
     [ "${DEBUG:-0}" -eq 0 ] && return 0
     k8s.journalctl
@@ -323,10 +325,8 @@ function k8s.logElapsed() {
     local -r text="${1:-}"
     local current=$(timer.getTimestamp)
 
-    {
-        printf '\n%s %s %s\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")"
-        echo
-    } | tee -a elapsed.times.txt
+    printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")" | tee -a elapsed.times.txt
+
     LASTTIME="$current"
     return 0
 }
@@ -338,18 +338,18 @@ function k8s.onexit() {
     if [ "${REMOTE:-}" ]; then
         for h in s1.ubuntu.home s{5..8}.ubuntu.home; do
             # shellcheck disable=SC2029        
-            ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
+            ssh "$h" "[ -e '${REMOTE:-}' ] && rm '${REMOTE:-}' ||:"
         done
     fi
     [ -f "${SCRIPT:-}" ] && rm "${SCRIPT}"
 
     local -i delta="$(timer.getTimestamp)"
     delta="$(( delta - START ))"
-    [ "$delta" -lt 3 ] || printf '%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a elapsed.times.txt
+    [ "$delta" -lt 3 ] || printf '\n\n%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a elapsed.times.txt
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.onRemote() {
+function k8s.on_remote() {
     
     cat << "EOF"
 #!/bin/bash
@@ -368,14 +368,14 @@ function create_registry_defs() {
 
     local SNAP_DATA="${1:-/etc/containerd/config.toml}"
     local version="${2:-}"
-    local config_path="${SNAP_DATA}/args/certs.d"
+    local configPath="${SNAP_DATA}/args/certs.d"
     shift 2
 
     local host
     for host in "$@"; do
         local reg="http://${host}"
-        run mkdir -p "${config_path}/$host"
-        cat << REGISTRY > "${config_path}/${host}/hosts.toml"
+        run mkdir -p "${configPath}/$host"
+        cat << REGISTRY > "${configPath}/${host}/hosts.toml"
 server = "$reg"
 
 [host."$reg"]
@@ -399,7 +399,7 @@ function main() {
     local -r uid="$(cut -d ':' -f 3 <<< "$inf")"
     local -r gid="$(cut -d ':' -f 4 <<< "$inf")"
     local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
-    local -r LOCAL_CONFIG="${homeDir}/.kube/config"
+    local -r localCOnfig="${homeDir}/.kube/config"
 
     echo "## $(date -Ins) ${host} ###########################################################################"
 
@@ -435,14 +435,14 @@ function main() {
     run snap install microk8s --channel "${version}/stable" --classic
 
     if [ -e "${SNAP}/credentials/client.config" ]; then
-        run cp "${SNAP}/credentials/client.config" "$LOCAL_CONFIG"
+        run cp "${SNAP}/credentials/client.config" "$localCOnfig"
     else
-        run microk8s config > "$LOCAL_CONFIG"
+        run microk8s config > "$localCOnfig"
     fi
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
         local -r CONFIG_FILE="$(pwd)/config.home"
-        [ -e "$CONFIG_FILE" ] && cp "$LOCAL_CONFIG" "$CONFIG_FILE"
+        [ -e "$CONFIG_FILE" ] && cp "$localCOnfig" "$CONFIG_FILE"
     fi
 
     echo 'add user to microk8s group'
@@ -535,21 +535,10 @@ function k8s.parse_config() {
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.removeApp() {
-
-    [ "$#" -eq 0 ] && return 0
-    local dir
-    for dir in "$@"; do
-        k8s.createSecretsForApp "$dir"
-        k8s.load_namespace "$dir" 'delete'
-    done
-}
-
-# -----------------------------------------------------------------------------------
 function k8s.reinit_nodes() {
 
     SCRIPT="$(mktemp)"
-    k8s.onRemote > "$SCRIPT"
+    k8s.on_remote > "$SCRIPT"
 
     echo 'reinit each node'
 
@@ -564,16 +553,16 @@ function k8s.reinit_nodes() {
         ssh "$h" "chmod 755 '$REMOTE'"
         # shellcheck disable=SC2029        
         k8s.run ssh "$h" "sudo '$REMOTE'"
-        k8s.logElapsed "${h}"
+        k8s.log_elapsed "${h}"
         # shellcheck disable=SC2029        
         ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
-    k8s.runInParallel 'reinstall.remote' "${K8S_NODES[@]}"
+    k8s.run_in_parallel 'reinstall.remote' "${K8S_NODES[@]}"
     rm "$SCRIPT"
     DEBUG=1
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -591,9 +580,20 @@ function k8s.reinstall_cluster() {
     k8s.separator k8s.add_new_content
     k8s.separator k8s.generate_token
     k8s.separator k8s.capture_config
-    k8s.separator k8s.updateJenkins
+    k8s.separator k8s.update_jenkins
     k8s.separator k8s.capture_ips_for_gui
     k8s.separator k8s.capture_status
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.remove_app() {
+
+    [ "$#" -eq 0 ] && return 0
+    local dir
+    for dir in "$@"; do
+        k8s.create_secrets_for_apps "$dir"
+        k8s.load_namespace "$dir" 'delete'
+    done
 }
 
 # -----------------------------------------------------------------------------------
@@ -613,7 +613,7 @@ function k8s.remove_content() {
     (k8s.load_namespace 'smee' 'delete') ||:
     (k8s.load_namespace 'versions' 'delete') ||:
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -627,7 +627,7 @@ function k8s.run() {
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.runInParallel() {
+function k8s.run_in_parallel() {
 
     local script="${1:?}"
     shift
@@ -648,7 +648,7 @@ function k8s.runInParallel() {
         cat "/tmp/$h.log"
         rm "/tmp/$h.log"
     done
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -661,7 +661,7 @@ function k8s.set_config() {
     local -r uid="$(cut -d ':' -f 3 <<< "$inf")"
     local -r gid="$(cut -d ':' -f 4 <<< "$inf")"
     local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
-    local -r LOCAL_CONFIG="${homeDir}/.kube/config"
+    local -r localCOnfig="${homeDir}/.kube/config"
 
     sudo mkdir -p "${homeDir}/.kube"
     sudo chown -f -R "${uid}:${gid}" "${homeDir}/.kube"
@@ -672,12 +672,12 @@ function k8s.set_config() {
 
     if [ -e "$cfgFile" ]; then
         sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$cfgFile"
-        k8s.run cp "$cfgFile" "$LOCAL_CONFIG"
+        k8s.run cp "$cfgFile" "$localCOnfig"
     else
-        k8s.run microk8s config > "$LOCAL_CONFIG"
-        sed -i -e "s|127.0.0.1|${ip}|g" "$LOCAL_CONFIG"
+        k8s.run microk8s config > "$localCOnfig"
+        sed -i -e "s|127.0.0.1|${ip}|g" "$localCOnfig"
     fi
-    cp "$LOCAL_CONFIG" "$CONFIG_FILE"
+    cp "$localCOnfig" "$CONFIG_FILE"
 
     function set_k8s_config() {
         local -r h="${1:?}"
@@ -688,9 +688,9 @@ function k8s.set_config() {
         sudo usermod -a -G microk8s "$(getent passwd "$uid"|cut -d ':' -f 1)"
     }
 
-    k8s.runInParallel 'set_k8s_config' "${K8S_NODES[@]}"
+    k8s.run_in_parallel 'set_k8s_config' "${K8S_NODES[@]}"
 
-    k8s.logElapsed "${FUNCNAME[0]}"
+    k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -704,21 +704,21 @@ function k8s.separator() {
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.updateJenkins() {
+function k8s.update_jenkins() {
 return 0
-    local -r token_file='tokens.inf'
-    if [ -f "$token_file" ]; then
-        k8s.updateJenkinsConfig "$JENKINS_TOKEN_KEY" "$(grep 'token:' "$token_file" | awk '{print $2}')"
+    local -r tokecFile='tokens.inf'
+    if [ -f "$tokecFile" ]; then
+        k8s.update_jenkins_config "$JENKINS_TOKEN_KEY" "$(grep 'token:' "$tokecFile" | awk '{print $2}')"
     fi
 
     local -r CONFIG_FILE="$(pwd)/config.${K8S_CLUSTERNAME}.home"
     if [ -f "$CONFIG_FILE" ]; then
-        k8s.updateJenkinsConfig "$JENKINS_ADMIN_KEY" "$(grep 'token:' "$CONFIG_FILE" | awk '{print $2}')"
+        k8s.update_jenkins_config "$JENKINS_ADMIN_KEY" "$(grep 'token:' "$CONFIG_FILE" | awk '{print $2}')"
     fi
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.updateJenkinsConfig() {
+function k8s.update_jenkins_config() {
 
     local -r id="${1:?}"
     local -r newval="${2:?}"
