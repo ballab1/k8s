@@ -1,65 +1,16 @@
-
-GRAFANA_VERSION: "8.5.6"
+GRAFANA_VERSION: "8.5.5"
 KUBERNETES_DASHBOARD_VERSION: "2.6.0"
+JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 SNAP: '/var/snap/microk8s/current'
 VERSION: 'K8S_124'
-
-DEV:
-  K8S_NODES:
-    - 's6.ubuntu.home'
-#    - 's4.ubuntu.home'
-    - 's8.ubuntu.home'
-  K8S_CLUSTERNAME: 'devk8s'
-  K8S_CLUSTER: 'development-cluster'
-  K8S_123:
-    K8S_VERSION: "1.23"
-    K8S_APPS:
-      - 'jenkins'
-      - 'microk8s.1.23'
-      - 'prometheus'
-#      - 'hubot'
-#      - 'jenkins-exporter'
-#      - 'kowl'
-#      - 'recipes'
-#      - 'smee'
-#      - 'versions'
-#      - 'web'
-#      - 'zoonavigator'
-    K8S_MODULES:
-      - 'ingress'
-      - 'dns'
-      - 'storage'
-      - 'metallb:192.168.0.1-192.168.0.100'
-      - 'helm3'
-  K8S_124:
-    K8S_VERSION: "1.24"
-    K8S_APPS:
-      - 'jenkins'
-      - 'microk8s.1.24'
-      - 'prometheus'
-#      - 'hubot'
-#      - 'jenkins-exporter'
-#      - 'kowl'
-#      - 'recipes'
-#      - 'smee'
-#      - 'versions'
-#      - 'web'
-#      - 'zoonavigator'
-#      - 'microk8s.1.24'
-    K8S_MODULES:
-      - 'ingress'
-      - 'dns'
-      - 'storage'
-      - 'hostpath-storage'
-      - 'metallb:192.168.0.1-192.168.0.100'
-      - 'helm3'
-
 
 PROD:
   K8S_NODES:
     - 's1.ubuntu.home'
     - 's5.ubuntu.home'
     - 's7.ubuntu.home'
+  JENKINS_ADMIN_KEY: 'ef08e917-8328-4854-847b-de0e74f1e3c7'
+  JENKINS_TOKEN_KEY: '5f755933-ec77-4486-8725-3967901502b4'
   K8S_CLUSTERNAME: 'prodk8s'
   K8S_CLUSTER: 'production-cluster'
   K8S_123:
@@ -110,3 +61,68 @@ PROD:
       - 'metrics-server'
       - 'prometheus'
       - 'helm3'
+
+DEV:
+  K8S_NODES:
+    - 's6.ubuntu.home'
+#    - 's4.ubuntu.home'
+    - 's8.ubuntu.home'
+  JENKINS_ADMIN_KEY: 'aa74c6b2-798b-4047-a7aa-38a3f7de8078'
+  JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
+  K8S_CLUSTERNAME: 'devk8s'
+  K8S_CLUSTER: 'development-cluster'
+  K8S_123:
+    K8S_VERSION: "1.23"
+    K8S_APPS:
+#      - 'hubot'
+      - 'jenkins'
+#      - 'jenkins-exporter'
+#      - 'kowl'
+#      - 'recipes'
+#      - 'smee'
+#      - 'versions'
+#      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.23'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'fluentd'
+      - 'storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'metrics-server'
+      - 'prometheus'
+      - 'dashboard'
+      - 'dashboard-ingress'
+      - 'helm3' 
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'prometheus'
+      - 'helm3'
+  K8S_124:
+    K8S_VERSION: "1.24"
+    K8S_APPS:
+#      - 'hubot'
+      - 'jenkins'
+#      - 'jenkins-exporter'
+#      - 'kowl'
+#      - 'recipes'
+#      - 'smee'
+#      - 'versions'
+#      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.24'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'metrics-server'
+      - 'prometheus'
+      - 'helm3'  
