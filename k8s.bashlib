@@ -233,8 +233,9 @@ function k8s.generate_token() {
         echo "$result" > "$token_file"
         break
     done
-    # if 
-    if [ -s "$token_file" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
+
+    # do token file found, create one
+    if [ -z "$(< "$token_file")" ] && [ "${FUNCNAME[1]}" != "${FUNCNAME[0]}" ]; then
         "$KUBECTL" apply -f - <<EOF
 apiVersion: v1
 kind: Secret
@@ -248,7 +249,7 @@ EOF
         sleep 3
         k8s.generate_token
     fi
-    [ -s "$token_file" ] || rm "$token_file"
+    [ "$(< "$token_file")" ] || (rm "$token_file" ||:)
 
     k8s.logElapsed "${FUNCNAME[0]}"
 }
@@ -323,7 +324,7 @@ function k8s.logElapsed() {
     local current=$(timer.getTimestamp)
 
     {
-        printf '%s %s %s\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")"
+        printf '\n%s %s %s\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")"
         echo
     } | tee -a elapsed.times.txt
     LASTTIME="$current"
@@ -412,7 +413,16 @@ function main() {
     trap onexit EXIT
 
 
+    # remove some of the content to ease the pressure created by reinstall 
 #    microk8s disable ha-cluster --force ||:
+    # get list of namespaces: allowed ( 'kube-system' 'kube-public' 'kube-node-lease' 'default' 'ingress' 'metallb-system monitoring' 
+#    "$KUBECTL" get ns -o jsonpath='{.items[*].metadata.name}'
+    # get list of enabled modules: allowed: ( 'dns' 'ha-cluster' )
+#    microk8s status | awk 'BEGIN {show=0} {if ($1 == "disabled:") { show=0 } else if (show == 1) { print $1 } else if ($1 == "enabled:" ) {show=1}}'
+
+
+
+
     microk8s.reset --destroy-storage ||:
     run snap remove microk8s
     [ -d ~/snap/microk8s ] && rm -rf ~/snap/microk8s
@@ -573,15 +583,17 @@ function k8s.reinstall_cluster() {
 
     sudo usermod -a -G microk8s "$USER"
 
-    k8s.reinit_nodes
-    k8s.set_config
-    k8s.enable_microk8s_modules
-    k8s.customize_content
-    k8s.add_new_content
-    k8s.generate_token
-    k8s.capture_config
-    k8s.capture_ips_for_gui
-    k8s.capture_status
+    k8s.separator k8s.reinit_nodes
+    k8s.separator k8s.add_nodes_to_cluster
+    k8s.separator k8s.set_config
+    k8s.separator k8s.enable_microk8s_modules
+    k8s.separator k8s.customize_content
+    k8s.separator k8s.add_new_content
+    k8s.separator k8s.generate_token
+    k8s.separator k8s.capture_config
+    k8s.separator k8s.updateJenkins
+    k8s.separator k8s.capture_ips_for_gui
+    k8s.separator k8s.capture_status
 }
 
 # -----------------------------------------------------------------------------------
@@ -679,6 +691,56 @@ function k8s.set_config() {
     k8s.runInParallel 'set_k8s_config' "${K8S_NODES[@]}"
 
     k8s.logElapsed "${FUNCNAME[0]}"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.separator() {
+
+    echo
+    echo "~~~$(printf ' %-30s' "$1")~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo
+
+    $1
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.updateJenkins() {
+return 0
+    local -r token_file='tokens.inf'
+    if [ -f "$token_file" ]; then
+        k8s.updateJenkinsConfig "$JENKINS_TOKEN_KEY" "$(grep 'token:' "$token_file" | awk '{print $2}')"
+    fi
+
+    local -r CONFIG_FILE="$(pwd)/config.${K8S_CLUSTERNAME}.home"
+    if [ -f "$CONFIG_FILE" ]; then
+        k8s.updateJenkinsConfig "$JENKINS_ADMIN_KEY" "$(grep 'token:' "$CONFIG_FILE" | awk '{print $2}')"
+    fi
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.updateJenkinsConfig() {
+
+    local -r id="${1:?}"
+    local -r newval="${2:?}"
+    local -r configXml="$(mktemp)"
+    
+    local jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+    curl -s -k -H "$jenkins_crumb" -X GET "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml" -o "$configXml"
+
+    if [ "$(< "$configXml")" ]; then
+        if grep -s '<password>' "$configXml"; then
+            xmlstarlet edit --inplace --update '//password' --value "$newval" "$configXml"
+#            jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+            curl -s -k -u 'bobb:123Oleary' -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
+        fi
+
+        if grep -s '<secret>' "$configXml"; then
+            xmlstarlet edit --inplace --update '//secret' --value "$newval" "$configXml"
+#            jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+            curl -s -k -u 'bobb:123Oleary' -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
+        fi
+        rm "$configXml"
+    fi
 }
 
 # -----------------------------------------------------------------------------------
