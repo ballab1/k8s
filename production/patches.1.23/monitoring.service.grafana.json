@@ -1,6 +1,0 @@
-{
-  "spec": {
-    "ports": [ { "name": "grafana", "protocol": "TCP", "port": 3000, "targetPort": "http" } ],
-    "type": "LoadBalancer"
-  }
-}

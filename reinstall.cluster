@@ -5,26 +5,28 @@ PROGRAM_DIR=~/GIT/k8s
 PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
 LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
 {
-    source "${PROGRAM_DIR}/k8s.bashlib"           2>&1
-    k8s.__init                                    2>&1
+  declare -i status
+  (
+    source "${PROGRAM_DIR}/k8s.bashlib"
+    k8s.__init
     cd /home/bobb/workspace
 
-    :> elapsed.times.txt
+    k8s.separator k8s.reinit_nodes
+    k8s.separator k8s.add_nodes_to_cluster
+    k8s.separator k8s.set_config
+    k8s.separator k8s.enable_microk8s_modules
+    k8s.separator k8s.customize_content
+    k8s.separator k8s.add_new_content
+    k8s.separator k8s.generate_token
+    k8s.separator k8s.capture_config
+    k8s.separator k8s.update_jenkins
+    k8s.separator k8s.capture_ips_for_gui
+    k8s.separator k8s.capture_status
 
-    sudo usermod -a -G microk8s "$USER"
-
-    k8s.separator k8s.reinit_nodes                2>&1
-    k8s.separator k8s.add_nodes_to_cluster        2>&1
-    k8s.separator k8s.set_config		  2>&1
-    k8s.separator k8s.enable_microk8s_modules	  2>&1
-    k8s.separator k8s.customize_content		  2>&1
-    k8s.separator k8s.add_new_content		  2>&1
-    k8s.separator k8s.generate_token		  2>&1
-    k8s.separator k8s.capture_config		  2>&1
-    k8s.separator k8s.update_jenkins		  2>&1
-    k8s.separator k8s.capture_ips_for_gui	  2>&1
-    k8s.separator k8s.capture_status		  2>&1
+  ) && status=$? || status=$? 2>&1
+  [ "$status" -eq 0 ] || echo "exit code ${status}"
 
 } | tee "${LOGFILE}"
 
 sed -i -E -e 's/\x1b\[[0-9;]*m//g' "${LOGFILE}"
+exit 0  
