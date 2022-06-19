@@ -1,0 +1,12 @@
+metadata:
+  labels:
+    app.kubernetes.io/version: "${GRAFANA_VERSION}"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/version: "${GRAFANA_VERSION}"
+    spec:
+      containers:
+        - name: grafana
+          image: s2.ubuntu.home:5000/thirdparty/grafana:${GRAFANA_VERSION}

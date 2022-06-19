@@ -42,9 +42,10 @@ function k8s.__init() {
     # shellcheck disable=SC2034
     DEBUG=0
     LASTTIME="$START"
+    sudo usermod -a -G microk8s "$USER"
+
 
     [ -z "${KUBECTL:-}" ] && KUBECTL="microk8s.kubectl"
-    :> 'elapsed.times.txt'
 }
 
 # ----------------------------------------------------------------------------------- 
@@ -163,7 +164,7 @@ function k8s.customize_content() {
             printf '\x1b[31m**** ERROR: %s\x1b[0m\n' "$patchFile" >&2 
             envsubst < "$patchFile"
         fi
-    done < <(find "production/patches.${K8S_VERSION}" -mindepth 1 -maxdepth 1 -type f -name '*.json') 
+    done < <(find "production/patches.${K8S_VERSION}" -mindepth 1 -maxdepth 1 -type f -name '*.yaml') 
 
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
@@ -537,6 +538,11 @@ function k8s.parse_config() {
 # -----------------------------------------------------------------------------------
 function k8s.reinit_nodes() {
 
+    # remove some of the content to ease the pressure created by reinstall 
+    k8s.remove_namespaces ||:
+    k8s.remove_persistenvolumes ||:
+    k8s.remove_modules    ||:
+
     SCRIPT="$(mktemp)"
     k8s.on_remote > "$SCRIPT"
 
@@ -569,8 +575,6 @@ function k8s.reinit_nodes() {
 function k8s.reinstall_cluster() {
 
     :> elapsed.times.txt
-
-    sudo usermod -a -G microk8s "$USER"
 
     k8s.separator k8s.reinit_nodes
     k8s.separator k8s.add_nodes_to_cluster
@@ -617,6 +621,58 @@ function k8s.remove_content() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.remove_modules() {
+
+    echo 'removing modules to ease the pressure created by reinstall'
+    local allowed=' ha-cluster ' 
+
+    # get list of namespaces: 
+    local -a current
+    mapfile -t current < <(microk8s status | awk 'BEGIN {show=0} {if ($1 == "disabled:") { show=0 } else if (show == 1) { print $1 } else if ($1 == "enabled:" ) {show=1}}')
+    local module
+    for module in "${current[@]}"; do
+        grep -qs " ${module} " <<< "$allowed" && continue
+        k8s.run sudo microk8s disable "$module"
+    done
+    echo
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.remove_namespaces() {
+
+    echo 'removing namespaces to ease the pressure created by reinstall'
+    local allowed=' kube-system kube-public kube-node-lease default ingress metallb-system monitoring ' 
+
+    # get list of namespaces: 
+    local -a current=( $("$KUBECTL" get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}') )
+    local ns
+    for ns in "${current[@]}"; do
+        grep -qs " ${ns} " <<< "$allowed" && continue
+        k8s.run "$KUBECTL" delete namespace "$ns"
+    done
+    echo
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.remove_persistenvolumes() {
+
+    echo 'removing persistentVolumes to ease the pressure created by reinstall'
+
+    # get list of PV's: 
+    local -a current=( $("$KUBECTL" get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}') )
+    local pv
+    for pv in "${current[@]}"; do
+        k8s.run "$KUBECTL" delete pv "$pv"
+    done
+    current=( $("$KUBECTL" get pvc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}') )
+    local pvc
+    for pvc in "${current[@]}"; do
+        k8s.run "$KUBECTL" delete pvc "$pv"
+    done
+    echo
+}
+
+# -----------------------------------------------------------------------------------
 function k8s.run() {
   {
       echo
@@ -640,6 +696,7 @@ function k8s.run_in_parallel() {
     echo '  wait for all jobs to complete'
     while [ "$(jobs -r -p)" ]; do
         wait
+        jobs -nl
     done
 
     echo '  output log of each job'
@@ -720,24 +777,30 @@ return 0
 # -----------------------------------------------------------------------------------
 function k8s.update_jenkins_config() {
 
+    if [ -z "${JENKINS_CREDS:-}" ] || [ -z "${JENKINS_URL:-}" ]; then
+        [ "${JENKINS_CREDS:-}" ] || printf '\x1b[31m**** ERROR: %s\x1b[0m\n' 'No credentials provided for Jenkins' >&2 
+        [ "${JENKINS_URL:-}" ] || printf '\x1b[31m**** ERROR: %s\x1b[0m\n' 'No URL provided for Jenkins' >&2 
+        exit 1
+    fi
+    
     local -r id="${1:?}"
     local -r newval="${2:?}"
     local -r configXml="$(mktemp)"
-    
-    local jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
-    curl -s -k -H "$jenkins_crumb" -X GET "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml" -o "$configXml"
+
+    local jenkins_crumb="$(curl -s -k -u "$JENKINS_CREDS" "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+    k8s.run curl -s -k -H "$jenkins_crumb" -X GET "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml" -o "$configXml"
 
     if [ "$(< "$configXml")" ]; then
         if grep -s '<password>' "$configXml"; then
             xmlstarlet edit --inplace --update '//password' --value "$newval" "$configXml"
-#            jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
-            curl -s -k -u 'bobb:123Oleary' -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
+#            jenkins_crumb="$(curl -s -k -u "$JENKINS_CREDS" "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+            k8s.run curl -s -k -u "$JENKINS_CREDS" -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
         fi
 
         if grep -s '<secret>' "$configXml"; then
             xmlstarlet edit --inplace --update '//secret' --value "$newval" "$configXml"
-#            jenkins_crumb="$(curl -s -k -u 'bobb:123Oleary' "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
-            curl -s -k -u 'bobb:123Oleary' -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
+#            jenkins_crumb="$(curl -s -k -u "$JENKINS_CREDS" "${JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)')"
+            k8s.run curl -s -k -u "$JENKINS_CREDS" -H "$jenkins_crumb" -H 'content-type:application/xml' -d @"$configXml" -X POST "${JENKINS_URL}/credentials/store/system/domain/_/credential/${id}/config.xml"
         fi
         rm "$configXml"
     fi
