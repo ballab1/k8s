@@ -382,6 +382,7 @@ server = "$reg"
 [host."$reg"]
   capabilities = ["pull", "resolve"]
 REGISTRY
+        run chown -R root:microk8s "${configPath}/$host"
     done
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -400,7 +401,7 @@ function main() {
     local -r uid="$(cut -d ':' -f 3 <<< "$inf")"
     local -r gid="$(cut -d ':' -f 4 <<< "$inf")"
     local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
-    local -r localCOnfig="${homeDir}/.kube/config"
+    local -r localConfig="${homeDir}/.kube/config"
 
     echo "## $(date -Ins) ${host} ###########################################################################"
 
@@ -414,19 +415,10 @@ function main() {
     trap onexit EXIT
 
 
-    # remove some of the content to ease the pressure created by reinstall 
-#    microk8s disable ha-cluster --force ||:
-    # get list of namespaces: allowed ( 'kube-system' 'kube-public' 'kube-node-lease' 'default' 'ingress' 'metallb-system monitoring' 
-#    "$KUBECTL" get ns -o jsonpath='{.items[*].metadata.name}'
-    # get list of enabled modules: allowed: ( 'dns' 'ha-cluster' )
-#    microk8s status | awk 'BEGIN {show=0} {if ($1 == "disabled:") { show=0 } else if (show == 1) { print $1 } else if ($1 == "enabled:" ) {show=1}}'
-
-
-
-
     microk8s.reset --destroy-storage ||:
     run snap remove microk8s
     [ -d ~/snap/microk8s ] && rm -rf ~/snap/microk8s
+    [ -d /var/snap/microk8s ] && rm -rf /var/snap/microk8s
 
     # create fresh dir for comfig
     [ -d "${homeDir}/.kube" ] && rm -rf "${homeDir}/.kube"
@@ -436,19 +428,19 @@ function main() {
     run snap install microk8s --channel "${version}/stable" --classic
 
     if [ -e "${SNAP}/credentials/client.config" ]; then
-        run cp "${SNAP}/credentials/client.config" "$localCOnfig"
+        run cp "${SNAP}/credentials/client.config" "$localConfig"
     else
-        run microk8s config > "$localCOnfig"
+        run microk8s config > "$localConfig"
     fi
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
         local -r CONFIG_FILE="$(pwd)/config.home"
-        [ -e "$CONFIG_FILE" ] && cp "$localCOnfig" "$CONFIG_FILE"
+        [ -e "$CONFIG_FILE" ] && cp "$localConfig" "$CONFIG_FILE"
     fi
 
     echo 'add user to microk8s group'
     run sudo usermod -a -G microk8s "$user"
-    sudo snap alias microk8s-kubectl kubectl
+    sudo snap alias microk8s.kubectl kubectl
 
 
     echo 'update k8s config and registry settings'
@@ -718,7 +710,7 @@ function k8s.set_config() {
     local -r uid="$(cut -d ':' -f 3 <<< "$inf")"
     local -r gid="$(cut -d ':' -f 4 <<< "$inf")"
     local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
-    local -r localCOnfig="${homeDir}/.kube/config"
+    local -r localConfig="${homeDir}/.kube/config"
 
     sudo mkdir -p "${homeDir}/.kube"
     sudo chown -f -R "${uid}:${gid}" "${homeDir}/.kube"
@@ -729,12 +721,12 @@ function k8s.set_config() {
 
     if [ -e "$cfgFile" ]; then
         sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$cfgFile"
-        k8s.run cp "$cfgFile" "$localCOnfig"
+        k8s.run cp "$cfgFile" "$localConfig"
     else
-        k8s.run microk8s config > "$localCOnfig"
-        sed -i -e "s|127.0.0.1|${ip}|g" "$localCOnfig"
+        k8s.run microk8s config > "$localConfig"
+        sed -i -e "s|127.0.0.1|${ip}|g" "$localConfig"
     fi
-    cp "$localCOnfig" "$CONFIG_FILE"
+    cp "$localConfig" "$CONFIG_FILE"
 
     function set_k8s_config() {
         local -r h="${1:?}"

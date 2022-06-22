@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: nginx-exporter
+  namespace: nginx-exporter
+  labels:
+    app.kubernetes.io/component: nginx-exporter
+    app.kubernetes.io/name: nginx-exporter
+spec:
+  ports:
+    - name: nginxexporter
+      protocol: TCP
+      port: 9118
+      targetPort: nginxexporter
+  selector:
+    app.kubernetes.io/component: nginx-exporter
+    app.kubernetes.io/name: nginx-exporter
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

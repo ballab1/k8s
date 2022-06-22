@@ -17,6 +17,10 @@ spec:
       protocol: TCP
       port: 80
       targetPort: web 
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: metrics 
   selector:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
