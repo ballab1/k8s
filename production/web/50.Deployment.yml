@@ -28,12 +28,20 @@ spec:
         - name: web-storage
           persistentVolumeClaim:
              claimName: nas-web
+        - name: web-metrics
+          configMap:
+            name: web-metrics
+            defaultMode: 420
       containers:
         - name: web
           image:  s2.ubuntu.home:5000/thirdparty/nginx:1.20.2
+          imagePullPolicy: IfNotPresent 
           ports:
             - name: web
               containerPort: 80
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
               protocol: TCP
           resources:
             limits:
@@ -50,12 +58,14 @@ spec:
             - name: web-storage
               mountPath: /usr/share/nginx/html
               subPath: web
+            - mountPath: /etc/nginx/conf.d/metrics.conf
+              name: web-metrics 
+              subPath: metrics.conf
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          imagePullPolicy: IfNotPresent 
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst

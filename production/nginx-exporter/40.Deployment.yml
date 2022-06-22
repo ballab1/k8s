@@ -1,0 +1,67 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nginx-exporter
+  namespace: nginx-exporter
+  labels:
+    app.kubernetes.io/component: nginx-exporter
+    app.kubernetes.io/name: nginx-exporter
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: nginx-exporter
+      app.kubernetes.io/name: nginx-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: nginx-exporter
+        app.kubernetes.io/name: nginx-exporter
+    spec:
+      volumes:
+        - name: nginx-exporter-storage
+          emptyDir: {}
+      containers:
+        - name: nginx-exporter
+          command:
+            - nginx-prometheus-exporter
+            - -nginx.scrape-uri=http://web.web.svc.cluster.local:8080/stub_status
+          image: s2.ubuntu.home:5000/thirdparty/nginx-prometheus-exporter:0.10
+          ports:
+            - name: nginxexporter
+              containerPort: 9118
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: nginx-exporter-storage
+              mountPath: /etc/nginx-exporter
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: nginx-exporter
+      serviceAccount: nginx-exporter
+      securityContext:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
