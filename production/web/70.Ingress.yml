@@ -4,6 +4,9 @@ metadata:
   name: web-ingress
   namespace: web
   annotations:
+annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9113"
     kubernetes.io/ingress.class: public
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
