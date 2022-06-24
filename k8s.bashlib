@@ -656,11 +656,11 @@ function k8s.remove_persistenvolumes() {
     for pv in "${current[@]}"; do
         k8s.run "$KUBECTL" delete pv "$pv"
     done
-    current=( $("$KUBECTL" get pvc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}') )
-    local pvc
-    for pvc in "${current[@]}"; do
-        k8s.run "$KUBECTL" delete pvc "$pv"
-    done
+#    current=( $("$KUBECTL" get pvc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}') )
+#    local pvc
+#    for pvc in "${current[@]}"; do
+#        k8s.run "$KUBECTL" delete pvc "$pv"
+#    done
     echo
 }
 
