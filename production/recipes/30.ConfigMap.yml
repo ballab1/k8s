@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: web-metrics
-  namespace: web
+  namespace: recipes
   labels:
     k8s-app: web 
 data:

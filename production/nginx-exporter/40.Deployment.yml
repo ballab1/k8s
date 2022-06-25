@@ -27,11 +27,11 @@ spec:
         - name: nginx-exporter
           command:
             - nginx-prometheus-exporter
-            - -nginx.scrape-uri=http://web.web.svc.cluster.local:8080/stub_status
+            - -nginx.scrape-uri=http://web.web.svc.cluster.local:8080/metrics
           image: s2.ubuntu.home:5000/thirdparty/nginx-prometheus-exporter:0.10
           ports:
             - name: nginxexporter
-              containerPort: 9118
+              containerPort: 9113
               protocol: TCP
           resources:
             limits:

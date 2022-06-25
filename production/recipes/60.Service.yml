@@ -6,15 +6,20 @@ metadata:
   labels:
     app.kubernetes.io/component: recipes
     app.kubernetes.io/name: recipes
+    prometheus.monitoring/service: nginx-exporter
 spec:
   ports:
     - name: https
       protocol: TCP
       port: 80
       targetPort: recipes 
-  selector:
-    app.kubernetes.io/component: recipes
-    app.kubernetes.io/name: recipes
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: metrics  
+#  selector:
+#    app.kubernetes.io/component: recipes
+#    app.kubernetes.io/name: recipes
   sessionAffinity: None
   type: LoadBalancer
 status:

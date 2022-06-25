@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
+    prometheus.monitoring/service: nginx-exporter
 spec:
   externalTrafficPolicy: Cluster 
   internalTrafficPolicy: Cluster
