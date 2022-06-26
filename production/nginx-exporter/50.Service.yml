@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: nginx-exporter
     app.kubernetes.io/name: nginx-exporter
+    prometheus.monitoring/service: nginx-exporter 
 spec:
   ports:
     - name: nginxexporter

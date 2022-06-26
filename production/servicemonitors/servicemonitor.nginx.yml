@@ -10,6 +10,7 @@ spec:
     - interval: 15s
       path: /metrics
       targetPort: 9118
+  jobLabel: app.kubernetes.io/name
   namespaceSelector:
     any: true
   selector:

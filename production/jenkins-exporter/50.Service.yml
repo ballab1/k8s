@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
+    prometheus.monitoring/service: jenkins-exporter 
 spec:
   ports:
     - name: jenkinsexporter
