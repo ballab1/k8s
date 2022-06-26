@@ -25,10 +25,10 @@ spec:
           emptyDir: {} 
         - name: run-storage
           emptyDir: {}
-        - name: web-storage
+        - name: recipe-storage
           persistentVolumeClaim:
              claimName: nas-recipes
-        - name: -metrics
+        - name: recipe-metrics
           configMap:
             name: recipe-metrics
             defaultMode: 420
@@ -57,11 +57,11 @@ spec:
               mountPath: /var/run 
             - name: var-storage
               mountPath: /var/cache/nginx 
-            - name: web-storage
+            - name: recipe-storage
               mountPath: /usr/share/nginx/html
-              subPath: recipes
+              subPath: recipe-storage
             - mountPath: /etc/nginx/conf.d/metrics.conf
-              name: web-metrics 
+              name: recipe-metrics 
               subPath: metrics.conf
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
