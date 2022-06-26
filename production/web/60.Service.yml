@@ -20,11 +20,11 @@ spec:
       targetPort: web 
     - name: metrics
       protocol: TCP
-      port: 8080
-      targetPort: metrics 
-  selector:
-    app.kubernetes.io/component: web
-    app.kubernetes.io/name: web
+      port: 9118
+      targetPort: nginxexporter 
+#  selector:
+#    app.kubernetes.io/component: web
+#    app.kubernetes.io/name: web
   sessionAffinity: None
   type: LoadBalancer
 status:

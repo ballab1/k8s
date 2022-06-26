@@ -9,14 +9,13 @@ data:
   metrics.conf: |
     server {
         listen       8080;
-        listen  [::]:8080;
         server_name  metrics;
     
         location /metrics {
             stub_status;
     
             access_log off;
-            allow 10.0.0.0/8;
+            allow 127.0.0.1;
             deny all;
         }
     
