@@ -9,7 +9,7 @@ spec:
   endpoints:
     - interval: 15s
       path: /metrics
-      targetPort: 9118
+      targetPort: metrics
   namespaceSelector:
     any: true
   selector:

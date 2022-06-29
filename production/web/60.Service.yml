@@ -22,9 +22,10 @@ spec:
       protocol: TCP
       port: 9118
       targetPort: nginxexporter 
-#  selector:
-#    app.kubernetes.io/component: web
-#    app.kubernetes.io/name: web
+  selector:
+    app.kubernetes.io/component: web
+    app.kubernetes.io/name: web
+#    prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
   type: LoadBalancer
 status:
