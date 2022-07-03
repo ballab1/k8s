@@ -9,7 +9,7 @@ metadata:
     prometheus.monitoring/service: jenkins-exporter 
 spec:
   ports:
-    - name: jenkinsexporter
+    - name: metrics
       protocol: TCP
       port: 9118
       targetPort: jenkinsexporter
