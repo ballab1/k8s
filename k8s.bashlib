@@ -754,8 +754,9 @@ function k8s.separator() {
 
 # -----------------------------------------------------------------------------------
 function k8s.update_jenkins() {
-return 0
+
     local -r tokecFile='tokens.inf'
+    JENKINS_CREDS="$(source "$__SECRETS_FILE" ; echo "$jenkins")"
     if [ -f "$tokecFile" ]; then
         k8s.update_jenkins_config "$JENKINS_TOKEN_KEY" "$(grep 'token:' "$tokecFile" | awk '{print $2}')"
     fi

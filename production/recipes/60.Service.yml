@@ -25,7 +25,7 @@ spec:
   selector:
     app.kubernetes.io/component: recipes
     app.kubernetes.io/name: recipes
-#    prometheus.monitoring/service: nginx-exporter
+    prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
   type: LoadBalancer
 status:

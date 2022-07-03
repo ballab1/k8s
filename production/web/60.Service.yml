@@ -25,7 +25,7 @@ spec:
   selector:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
-#    prometheus.monitoring/service: nginx-exporter
+    prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
   type: LoadBalancer
 status:
