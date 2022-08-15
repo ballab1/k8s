@@ -528,6 +528,13 @@ function k8s.parse_config() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.prometheus_service_discovery() {
+
+   local prometheus="$("$KUBECTL" get svc -n monitoring prometheus-k8s -o json|jq '.spec|"http://\(.clusterIP):\(.ports[].port)"')"
+   curl -s "${prometheus}/api/v1/targets"
+}
+
+# -----------------------------------------------------------------------------------
 function k8s.reinit_nodes() {
 
     # remove some of the content to ease the pressure created by reinstall 
@@ -753,9 +760,20 @@ function k8s.separator() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s.server_ip() {
+
+    local -r inf="$(getent passwd "$USER")"
+    local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
+    local -r localConfig="${homeDir}/.kube/config"
+
+    python3 -c 'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' < "$localConfig" | jq -r '.clusters[].cluster.server'
+}
+
+# -----------------------------------------------------------------------------------
 function k8s.update_jenkins() {
-return 0
+
     local -r tokecFile='tokens.inf'
+    JENKINS_CREDS="$(source "$__SECRETS_FILE" ; echo "$jenkins")"
     if [ -f "$tokecFile" ]; then
         k8s.update_jenkins_config "$JENKINS_TOKEN_KEY" "$(grep 'token:' "$tokecFile" | awk '{print $2}')"
     fi

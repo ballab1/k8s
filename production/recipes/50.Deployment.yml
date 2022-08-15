@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: recipes
     app.kubernetes.io/name: recipes
+    prometheus.monitoring/service: nginx-exporter
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
@@ -14,27 +15,39 @@ spec:
     matchLabels:
       app.kubernetes.io/component: recipes
       app.kubernetes.io/name: recipes
+      prometheus.monitoring/service: nginx-exporter
   template:
     metadata:
       labels:
         app.kubernetes.io/component: recipes
         app.kubernetes.io/name: recipes
+        prometheus.monitoring/service: nginx-exporter
     spec:
       volumes:
         - name: var-storage
           emptyDir: {} 
         - name: run-storage
           emptyDir: {}
-        - name: web-storage
+        - name: recipe-storage
           persistentVolumeClaim:
              claimName: nas-recipes
+        - name: web-metrics
+          configMap:
+            name: web-metrics
+            defaultMode: 420
+        - name: nginx-exporter-storage
+          emptyDir: {}
       containers:
         - name: recipes
-          image:  s2.ubuntu.home:5000/thirdparty/nginx:1.20.2
+          image:  s2.ubuntu.home:5000/thirdparty/nginx:1.22.0
+          imagePullPolicy: IfNotPresent 
           ports:
             - name: recipes
               containerPort: 80
               protocol: TCP
+#            - name: metrics
+#              containerPort: 8080
+#              protocol: TCP
           resources:
             limits:
               cpu: 200m
@@ -47,12 +60,36 @@ spec:
               mountPath: /var/run 
             - name: var-storage
               mountPath: /var/cache/nginx 
-            - name: web-storage
+            - name: recipe-storage
               mountPath: /usr/share/nginx/html
               subPath: recipes
+            - mountPath: /etc/nginx/conf.d/metrics.conf
+              name: web-metrics
+              subPath: metrics.conf
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - name: nginx-exporter
+          command:
+            - nginx-prometheus-exporter
+            - -nginx.scrape-uri=http://127.0.0.1:8080/metrics
+          image: s2.ubuntu.home:5000/thirdparty/nginx-prometheus-exporter:0.10
+          ports:
+            - name: nginxexporter
+              containerPort: 9113
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: nginx-exporter-storage
+              mountPath: /etc/nginx-exporter
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent 

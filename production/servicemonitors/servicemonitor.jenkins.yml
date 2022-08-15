@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: jenkins-monitor
+  name: jenkins-monitor
+  namespace: monitoring
+spec:
+  endpoints:
+    - interval: 15s
+      path: /metrics
+      targetPort: metrics
+  namespaceSelector:
+    any: true
+#    matchNames:
+#    - jenkins-exporter
+  selector:
+    matchLabels:
+      prometheus.monitoring/service: jenkins-exporter

@@ -1,4 +1,4 @@
-GRAFANA_VERSION: "8.5.5"
+GRAFANA_VERSION: "9.0.3"
 KUBERNETES_DASHBOARD_VERSION: "2.6.0"
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 SNAP: '/var/snap/microk8s/current'
@@ -23,6 +23,7 @@ PROD:
       - 'kowl'
       - 'recipes'
       - 'smee'
+      - 'minio'
       - 'versions'
       - 'web'
       - 'zoonavigator'
@@ -49,6 +50,7 @@ PROD:
       - 'kowl'
       - 'recipes'
       - 'smee'
+      - 'minio'
       - 'versions'
       - 'web'
       - 'zoonavigator'
@@ -83,6 +85,7 @@ DEV:
 #      - 'kowl'
 #      - 'recipes'
 #      - 'smee'
+#      - 'minio'
 #      - 'versions'
 #      - 'web'
 #      - 'zoonavigator'
@@ -115,6 +118,7 @@ DEV:
 #      - 'nginx-exporter'
 #      - 'kowl'
 #      - 'recipes'
+#      - 'minio'
 #      - 'smee'
 #      - 'versions'
 #      - 'web'

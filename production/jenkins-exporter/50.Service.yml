@@ -6,15 +6,17 @@ metadata:
   labels:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
+    prometheus.monitoring/service: jenkins-exporter 
 spec:
   ports:
-    - name: jenkinsexporter
+    - name: metrics
       protocol: TCP
       port: 9118
       targetPort: jenkinsexporter
   selector:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
+    prometheus.monitoring/service: jenkins-exporter 
   sessionAffinity: None
   type: LoadBalancer
 status:

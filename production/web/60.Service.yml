@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
+    prometheus.monitoring/service: nginx-exporter
 spec:
   externalTrafficPolicy: Cluster 
   internalTrafficPolicy: Cluster
@@ -19,11 +20,12 @@ spec:
       targetPort: web 
     - name: metrics
       protocol: TCP
-      port: 8080
-      targetPort: metrics 
+      port: 9118
+      targetPort: nginxexporter 
   selector:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
+    prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
   type: LoadBalancer
 status:
