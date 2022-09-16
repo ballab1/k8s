@@ -32,7 +32,7 @@ spec:
           command:
             - /opt/kafka-eagle/bin/ke.sh
             - start
-          image: s2.ubuntu.home:5000/alpine/kafka-eagle/2.1.0:dev
+          image: s2.ubuntu.home:5000/alpine/kafka-eagle/3.0.1:dev
           env:
             - name: JAVA_HOME
               value: /usr/lib/jvm/java-11-openjdk

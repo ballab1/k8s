@@ -1,8 +1,8 @@
-GRAFANA_VERSION: "9.0.3"
-KUBERNETES_DASHBOARD_VERSION: "2.6.0"
+GRAFANA_VERSION: "9.1.5"
+KUBERNETES_DASHBOARD_VERSION: "2.6.1"
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 SNAP: '/var/snap/microk8s/current'
-VERSION: 'K8S_124'
+VERSION: 'K8S_125'
 
 PROD:
   K8S_NODES:
@@ -124,6 +124,22 @@ DEV:
 #      - 'web'
 #      - 'zoonavigator'
       - 'microk8s.1.24'
+      - 'prometheus'
+  K8S_125:
+    K8S_VERSION: "1.25"
+    K8S_APPS:
+#      - 'hubot'
+      - 'jenkins'
+#      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+#      - 'kowl'
+#      - 'recipes'
+#      - 'minio'
+#      - 'smee'
+#      - 'versions'
+#      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.25'
       - 'prometheus'
     K8S_MODULES:
       - 'ingress'
