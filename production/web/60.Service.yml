@@ -21,7 +21,7 @@ spec:
     - name: metrics
       protocol: TCP
       port: 9118
-      targetPort: nginxexporter 
+      targetPort: metrics 
   selector:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web

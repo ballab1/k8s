@@ -59,7 +59,7 @@ spec:
               name: jenkins-tls
               readOnly: true
           ports:
-            - name: jenkinsexporter
+            - name: metrics
               containerPort: 9118
               protocol: TCP
           resources:

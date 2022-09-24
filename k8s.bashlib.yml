@@ -1,5 +1,5 @@
-GRAFANA_VERSION: "9.1.5"
-KUBERNETES_DASHBOARD_VERSION: "2.6.1"
+GRAFANA_VERSION: "9.1.6"
+KUBERNETES_DASHBOARD_VERSION: "2.7.0"
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 SNAP: '/var/snap/microk8s/current'
 VERSION: 'K8S_125'
@@ -39,7 +39,7 @@ PROD:
       - 'prometheus'
       - 'dashboard'
       - 'dashboard-ingress'
-      - 'helm3' 
+      - 'helm3'
   K8S_124:
     K8S_VERSION: "1.24"
     K8S_APPS:
@@ -69,7 +69,7 @@ PROD:
 DEV:
   K8S_NODES:
     - 's6.ubuntu.home'
-#    - 's4.ubuntu.home'
+    - 's4.ubuntu.home'
     - 's8.ubuntu.home'
   JENKINS_ADMIN_KEY: 'aa74c6b2-798b-4047-a7aa-38a3f7de8078'
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
@@ -101,7 +101,7 @@ DEV:
       - 'prometheus'
       - 'dashboard'
       - 'dashboard-ingress'
-      - 'helm3' 
+      - 'helm3'
     K8S_MODULES:
       - 'ingress'
       - 'dns'
@@ -125,6 +125,15 @@ DEV:
 #      - 'zoonavigator'
       - 'microk8s.1.24'
       - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+#      - 'metrics-server'
+#      - 'prometheus'
+      - 'helm3'
   K8S_125:
     K8S_VERSION: "1.25"
     K8S_APPS:
@@ -147,6 +156,6 @@ DEV:
       - 'storage'
       - 'hostpath-storage'
       - 'metallb:192.168.0.1-192.168.0.100'
-      - 'metrics-server'
-      - 'prometheus'
-      - 'helm3'  
+#      - 'metrics-server'
+#      - 'prometheus'
+      - 'helm3'

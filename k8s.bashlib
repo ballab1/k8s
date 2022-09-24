@@ -267,6 +267,21 @@ function k8s.install_app() {
     "$KUBECTL" get all
 } 
 
+# -----------------------------------------------------------------------------------
+function k8s.install_krew() {
+
+#    set -x
+    TEMP="$(mktemp -d)"
+    cd "$TEMP"
+    OS="$(uname | tr '[:upper:]' '[:lower:]')"
+    ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
+    KREW="krew-${OS}_${ARCH}"
+    curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz"
+    tar zxvf "${KREW}.tar.gz"
+    "./$KREW" install krew ||:
+    return 0
+} 
+
 # ----------------------------------------------------------------------------------- 
 # shellcheck disable=SC2120
 function k8s.journalctl() {
@@ -329,6 +344,7 @@ function k8s.log_elapsed() {
     printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((current - LASTTIME))")" | tee -a elapsed.times.txt
 
     LASTTIME="$current"
+    stty sane
     return 0
 }
 
@@ -337,12 +353,15 @@ function k8s.onexit() {
 
     find /tmp -maxdepth 1 -mindepth 1 -type f \( -name 'ssh.s?.txt' -or -name 'tmp*' \) -delete
     if [ "${REMOTE:-}" ]; then
-        for h in s1.ubuntu.home s{5..8}.ubuntu.home; do
+        local node
+        for node in "${K8S_NODES[@]}"; do
             # shellcheck disable=SC2029        
-            ssh "$h" "[ -e '${REMOTE:-}' ] && rm '${REMOTE:-}' ||:"
+            ssh "$node" "[ -e '${REMOTE:-}' ] && rm '${REMOTE:-}' ||:"
         done
     fi
     [ -f "${SCRIPT:-}" ] && rm "${SCRIPT}"
+
+    [ "${TEMP:-}" ] && [[ "${TEMP:-}" =~ /tmp/* ]] && [ -d "$TEMP" ] && rm -rf "$TEMP"
 
     local -i delta="$(timer.getTimestamp)"
     delta="$(( delta - START ))"
@@ -390,6 +409,7 @@ function main() {
 
     START=$(date +%s)
     DEBUG=0
+    TEMP=''
     BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
 
     local -r host="${1:?}"

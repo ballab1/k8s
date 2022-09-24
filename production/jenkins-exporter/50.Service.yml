@@ -12,7 +12,7 @@ spec:
     - name: metrics
       protocol: TCP
       port: 9118
-      targetPort: jenkinsexporter
+      targetPort: metrics
   selector:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
