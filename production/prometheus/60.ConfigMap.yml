@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: additional-targets
-  namespace: monitoring
+  namespace: observability
   labels:
     app.kubernetes.io/component: prometheus
     app.kubernetes.io/name: prometheus

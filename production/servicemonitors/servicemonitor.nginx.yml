@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: nginx-monitor
   name: nginx-monitor
-  namespace: monitoring
+  namespace: observability
 spec:
   endpoints:
     - interval: 15s

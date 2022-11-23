@@ -1,0 +1,7 @@
+apiVersion: apps/v1
+kind: DaemonSet
+spec:
+  template:
+    spec:
+    - name: node-exporter
+      image: quay.io/prometheus/node-exporter:v1.4.0

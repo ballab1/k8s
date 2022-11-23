@@ -1,14 +1,20 @@
-GRAFANA_VERSION: "9.1.6"
+DEV_MASTER: 's5.ubuntu.home'
+PROD_MASTER: 's4.ubuntu.home'
+REGISTRY: 's2.ubuntu.home:5000'
+GRAFANA_VERSION: "9.2.4"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
-JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
-SNAP: '/var/snap/microk8s/current'
 VERSION: 'K8S_125'
+
+
+JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
+JSONNET_IMAGE: 's2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
+SNAP: '/var/snap/microk8s/current'
 
 PROD:
   K8S_NODES:
-    - 's1.ubuntu.home'
-    - 's5.ubuntu.home'
-    - 's7.ubuntu.home'
+    - 's4.ubuntu.home'
+    - 's6.ubuntu.home'
+    - 's8.ubuntu.home'
   JENKINS_ADMIN_KEY: 'ef08e917-8328-4854-847b-de0e74f1e3c7'
   JENKINS_TOKEN_KEY: '5f755933-ec77-4486-8725-3967901502b4'
   K8S_CLUSTERNAME: 'prodk8s'
@@ -19,7 +25,7 @@ PROD:
       - 'hubot'
       - 'jenkins'
       - 'jenkins-exporter'
-      - 'nginx-exporter'
+#      - 'nginx-exporter'
       - 'kowl'
       - 'recipes'
       - 'smee'
@@ -37,8 +43,8 @@ PROD:
       - 'metallb:192.168.0.1-192.168.0.100'
       - 'metrics-server'
       - 'prometheus'
-      - 'dashboard'
-      - 'dashboard-ingress'
+#      - 'dashboard'
+#      - 'dashboard-ingress'
       - 'helm3'
   K8S_124:
     K8S_VERSION: "1.24"
@@ -46,7 +52,7 @@ PROD:
       - 'hubot'
       - 'jenkins'
       - 'jenkins-exporter'
-      - 'nginx-exporter'
+#      - 'nginx-exporter'
       - 'kowl'
       - 'recipes'
       - 'smee'
@@ -65,12 +71,37 @@ PROD:
       - 'metrics-server'
       - 'prometheus'
       - 'helm3'
+  K8S_125:
+    K8S_VERSION: "1.25"
+    K8S_APPS:
+      - 'hubot'
+      - 'jenkins'
+      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+      - 'kowl'
+      - 'recipes'
+      - 'smee'
+      - 'minio'
+      - 'versions'
+      - 'web'
+      - 'zoonavigator'
+      - 'microk8s.1.25'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'metrics-server'
+      - 'observability'
+      - 'helm3'
 
 DEV:
   K8S_NODES:
-    - 's6.ubuntu.home'
-    - 's4.ubuntu.home'
-    - 's8.ubuntu.home'
+    - 's1.ubuntu.home'
+    - 's5.ubuntu.home'
+    - 's7.ubuntu.home'
   JENKINS_ADMIN_KEY: 'aa74c6b2-798b-4047-a7aa-38a3f7de8078'
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
   K8S_CLUSTERNAME: 'devk8s'
@@ -94,20 +125,13 @@ DEV:
     K8S_MODULES:
       - 'ingress'
       - 'dns'
-      - 'fluentd'
+#      - 'fluentd'
       - 'storage'
       - 'metallb:192.168.0.1-192.168.0.100'
       - 'metrics-server'
       - 'prometheus'
-      - 'dashboard'
-      - 'dashboard-ingress'
-      - 'helm3'
-    K8S_MODULES:
-      - 'ingress'
-      - 'dns'
-      - 'storage'
-      - 'metallb:192.168.0.1-192.168.0.100'
-      - 'prometheus'
+#      - 'dashboard'
+#      - 'dashboard-ingress'
       - 'helm3'
   K8S_124:
     K8S_VERSION: "1.24"
@@ -156,6 +180,7 @@ DEV:
       - 'storage'
       - 'hostpath-storage'
       - 'metallb:192.168.0.1-192.168.0.100'
-#      - 'metrics-server'
+      - 'metrics-server'
+      - 'observability'
 #      - 'prometheus'
       - 'helm3'

@@ -2,7 +2,7 @@ kind: Endpoints
 apiVersion: v1
 metadata:
   name: "external-minio-endpoint"
-  namespace: monitoring
+  namespace: observability
 subsets: 
   - addresses:
       - ip: 10.3.1.8 
