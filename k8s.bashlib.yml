@@ -1,9 +1,9 @@
 DEV_MASTER: 's5.ubuntu.home'
 PROD_MASTER: 's4.ubuntu.home'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "9.2.4"
+GRAFANA_VERSION: "9.2.6"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
-VERSION: 'K8S_125'
+VERSION: 'K8S_126'
 
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
@@ -96,6 +96,31 @@ PROD:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+  K8S_126:
+    K8S_VERSION: "1.26"
+    K8S_APPS:
+      - 'hubot'
+      - 'jenkins'
+      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+      - 'kowl'
+      - 'recipes'
+      - 'smee'
+      - 'minio'
+      - 'versions'
+      - 'web'
+      - 'zoonavigator'
+      - 'microk8s.1.26'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'metrics-server'
+      - 'observability'
+      - 'helm3'
 
 DEV:
   K8S_NODES:
@@ -173,6 +198,32 @@ DEV:
 #      - 'web'
 #      - 'zoonavigator'
       - 'microk8s.1.25'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.0.1-192.168.0.100'
+      - 'metrics-server'
+      - 'observability'
+#      - 'prometheus'
+      - 'helm3'
+  K8S_126:
+    K8S_VERSION: "1.26"
+    K8S_APPS:
+#      - 'hubot'
+      - 'jenkins'
+#      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+#      - 'kowl'
+#      - 'recipes'
+#      - 'minio'
+#      - 'smee'
+#      - 'versions'
+#      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.26'
       - 'prometheus'
     K8S_MODULES:
       - 'ingress'
