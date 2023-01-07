@@ -89,8 +89,9 @@ function k8s.add_nodes_to_cluster() {
 function k8s.capture_config() {
 
     echo 'capturing config content'
-    "$KUBECTL" api-versions ||: > ./api-api-versions.txt
-    "$KUBECTL" api-resources -o wide ||: > ./api-resources.txt
+    mkdir -p current
+    "$KUBECTL" api-versions ||: > ./current/api-api-versions.txt
+    "$KUBECTL" api-resources -o wide ||: > ./current/api-resources.txt
 
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
@@ -194,19 +195,19 @@ function k8s.dump_apis() {
     fi
     while read -r object; do
         echo "  $object"
-        [ "$dirOrg" = 'by_api' ] && mkdir -p "apis/${object}"
+        [ "$dirOrg" = 'by_api' ] && mkdir -p "current/apis/${object}"
         for mode in "${modes[@]}"; do
             declare ext="$mode"
             [ "$mode" = 'wide' ] && ext='txt'
             if [ "$dirOrg" = 'by_api' ]; then
-                "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${object}/${mode}.$ext" ||:
+                "$KUBECTL" get "$object" -A -o "$mode" &> "current/apis/${object}/${mode}.$ext" ||:
             else
-                "$KUBECTL" get "$object" -A -o "$mode" &> "apis/${mode}/${object}.$ext" ||:
+                "$KUBECTL" get "$object" -A -o "$mode" &> "current/apis/${mode}/${object}.$ext" ||:
             fi
         done
     done < <("$KUBECTL" api-resources --no-headers=false -o=name --sort-by=name)
 
-    "$KUBECTL" api-resources --sort-by=name --output wide > apis/api-resourses.txt
+    "$KUBECTL" api-resources --sort-by=name --output wide > current/apis/api-resourses.txt
 
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
@@ -231,7 +232,8 @@ function k8s.enable_microk8s_modules() {
 function k8s.generate_token() {
 
     echo 'generating tokens.inf'
-    local tokenFile='tokens.inf'
+    mkdir -p current
+    local tokenFile='./current/tokens.inf'
     :> "$tokenFile"
     for token in 'default-token' 'admin-user' ; do
         local ref="$("$KUBECTL" -n kube-system get secret | grep "$token" ||:)"
@@ -444,7 +446,7 @@ function main() {
     fi
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
-        local -r CONFIG_FILE="$(pwd)/config.home"
+        local -r CONFIG_FILE="$(pwd)/current/config.home"
         [ -e "$CONFIG_FILE" ] && cp "$localConfig" "$CONFIG_FILE"
     fi
 
@@ -636,7 +638,9 @@ function k8s.reinit_nodes() {
 # -----------------------------------------------------------------------------------
 function k8s.reinstall_cluster() {
 
-    :> elapsed.times.txt
+    [ -d current ] && rm -rf current
+    mkdir current
+    :> ./current/elapsed.times.txt
 
     k8s.separator k8s.reinit_nodes
     [ -z "$(which microk8s)" ] && exit 1
@@ -797,7 +801,7 @@ function k8s.set_config() {
 
     local cfgFile="${SNAP}/credentials/client.config"
     local ip="$(ip -4 -j address show scope global dynamic|jq -r '.[0].addr_info[].local')" 
-    local -r CONFIG_FILE="$(pwd)/config.${K8S_CLUSTERNAME}.home"
+    local -r CONFIG_FILE="$(pwd)/current/config.${K8S_CLUSTERNAME}.home"
 
     if [ -e "$cfgFile" ]; then
         sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$cfgFile"
