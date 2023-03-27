@@ -25,7 +25,7 @@ spec:
           emptyDir: {}
       containers:
         - name: kafdrop
-          image: s2.ubuntu.home:5000/thirdparty/kafdrop:3.30.0
+          image: s2.ubuntu.home:5000/thirdparty/kafdrop:3.31.0
           env:
             - name: JVM_OPTS
               value: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
