@@ -1,28 +1,27 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: stormshot-ingress
-  namespace: stormshot
+  name: grafana-ingress
+  namespace: observability
   annotations:
     spec.ingressClassName: public
-#    kubernetes.io/ingress.class: public
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
   defaultBackend:
     service:
-      name: stormshot
+      name: kube-prom-stack-grafana
       port:
-        number: 443
+        number: 3000
   rules:
-  - host: "stormshot.k8s.home"
+  - host: "grafana.k8s.home"
     http:
       paths:
         - path: /
           pathType: Prefix
           backend:
             service:
-              name: stormshot
+              name: grafana
               port:
-                number: 80
+                number: 443

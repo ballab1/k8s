@@ -99,9 +99,10 @@ function k8s.capture_config() {
 # -----------------------------------------------------------------------------------
 function k8s.capture_ips_for_gui() {
 
-   local ipFile='services_ips.json'
+   local ipFile='current/services_ips.json'
 
     echo 'capturing IPs for GUI'
+    mkdir -p "$(pwd)/current" ||:
     "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > "$ipFile"
     scp "$ipFile" s3:production/workspace.production/www/
 #    cp "$ipFile" /mnt/k8s/web/
@@ -446,6 +447,7 @@ function main() {
     fi
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
+        mkdir -p "$(pwd)/current" ||:
         local -r CONFIG_FILE="$(pwd)/current/config.home"
         [ -e "$CONFIG_FILE" ] && cp "$localConfig" "$CONFIG_FILE"
     fi
