@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: redpanda
+  namespace: redpanda
+  labels:
+    app.kubernetes.io/component: redpanda
+    app.kubernetes.io/name: redpanda
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: redpanda
+  selector:
+    app.kubernetes.io/component: redpanda
+    app.kubernetes.io/name: redpanda
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

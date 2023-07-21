@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-yml
+  namespace: redpanda
+  labels:
+    k8s-app: redpanda
+data:
+  config.yml: |
+    kafka:
+      brokers:
+        - s3.ubuntu.home:9092
+        - s7.ubuntu.home:9092
+        - s8.ubuntu.home:9092
+      clientId: rpconsole
+    redpanda:
+      adminApi:
+        enabled: false
+        urls:
+          - http://s3.ubuntu.home:9644
+          - http://s7.ubuntu.home:9644
+          - http://s8.ubuntu.home:9644
