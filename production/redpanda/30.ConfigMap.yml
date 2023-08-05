@@ -12,6 +12,12 @@ data:
         - s3.ubuntu.home:9092
         - s7.ubuntu.home:9092
         - s8.ubuntu.home:9092
+      schemaRegistry:
+        enabled: false
+        urls:
+          - http://s3.ubuntu.home:8081
+          - http://s7.ubuntu.home:8081
+          - http://s8.ubuntu.home:8081
       clientId: rpconsole
     redpanda:
       adminApi:
