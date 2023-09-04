@@ -18,6 +18,33 @@ PROD:
   JENKINS_TOKEN_KEY: '5f755933-ec77-4486-8725-3967901502b4'
   K8S_CLUSTERNAME: 'prodk8s'
   K8S_CLUSTER: 'production-cluster'
+  K8S_128:
+    INGRESS_CLASS: 'spec.ingressClassName'
+    K8S_VERSION: "1.28"
+    K8S_APPS:
+      - 'hubot'
+      - 'jenkins'
+      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+#      - 'kowl'
+      - 'recipes'
+      - 'smee'
+      - 'minio'
+      - 'versions'
+      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.28'
+      - 'prometheus'
+      - redpanda
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.168.1-192.168.168.100'
+      - 'metrics-server'
+      - 'observability'
+      - 'helm3'
   K8S_127:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.27"
@@ -161,6 +188,33 @@ DEV:
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
   K8S_CLUSTERNAME: 'devk8s'
   K8S_CLUSTER: 'development-cluster'
+  K8S_128:
+    INGRESS_CLASS: 'spec.ingressClassName'
+    K8S_VERSION: "1.28"
+    K8S_APPS:
+#      - 'hubot'
+      - 'jenkins'
+#      - 'jenkins-exporter'
+#      - 'nginx-exporter'
+#      - 'kowl'
+#      - 'recipes'
+#      - 'minio'
+#      - 'smee'
+#      - 'versions'
+#      - 'web'
+#      - 'zoonavigator'
+      - 'microk8s.1.28'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'ingress'
+      - 'dns'
+      - 'storage'
+      - 'hostpath-storage'
+      - 'metallb:192.168.168.1-192.168.168.100'
+      - 'metrics-server'
+      - 'observability'
+#      - 'prometheus'
+      - 'helm3'
   K8S_127:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.27"
