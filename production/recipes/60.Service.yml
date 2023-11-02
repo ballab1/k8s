@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: recipes
     prometheus.monitoring/service: nginx-exporter
 spec:
-  externalTrafficPolicy: Cluster 
+  externalTrafficPolicy: Cluster
   internalTrafficPolicy: Cluster
   ipFamilies:
     - IPv4
@@ -17,16 +17,14 @@ spec:
     - name: http
       protocol: TCP
       port: 80
-      targetPort: recipes 
+      targetPort: recipes
     - name: metrics
       protocol: TCP
       port: 9118
-      targetPort: metrics 
+      targetPort: metrics
   selector:
     app.kubernetes.io/component: recipes
     app.kubernetes.io/name: recipes
     prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
   type: LoadBalancer
-status:
-  loadBalancer: {}

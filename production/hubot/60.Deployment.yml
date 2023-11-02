@@ -73,7 +73,7 @@ spec:
                 secretKeyRef:
                    name: slack-token
                    key: secret
-          image:  s2.ubuntu.home:5000/alpine/hubot:dev
+          image:  s2.ubuntu.home:5000/alpine/hubot:v3.9.10
           resources:
             limits:
               cpu: 200m

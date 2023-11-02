@@ -17,5 +17,3 @@ spec:
       targetPort: http
   sessionAffinity: None
   type: LoadBalancer
-status:
-  loadBalancer: {}

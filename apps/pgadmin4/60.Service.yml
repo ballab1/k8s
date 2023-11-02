@@ -11,11 +11,9 @@ spec:
     - name: https
       protocol: TCP
       port: 80
-      targetPort: pgadmin4 
+      targetPort: pgadmin4
   selector:
     app.kubernetes.io/component: pgadmin4
     app.kubernetes.io/name: pgadmin4
   sessionAffinity: None
   type: LoadBalancer
-status:
-  loadBalancer: {}
