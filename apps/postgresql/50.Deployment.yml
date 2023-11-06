@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
+  namespace: postgres
   labels:
     app.kubernetes.io/component: postgres
     app.kubernetes.io/name: postgres
@@ -27,7 +28,7 @@ spec:
             claimName: postgres-pv-claim
       containers:
         - name: postgres
-          image: s2.ubuntu.home:5000/thirdparty/postgres:10.4
+          image: s2.ubuntu.home:5000/thirdparty/postgres:16.0-alpine3.18
           imagePullPolicy: "IfNotPresent"
           ports:
             - name: postgres
@@ -49,10 +50,10 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: postgres
       serviceAccount: postgres
-      securityContext:
-        runAsUser: 65534
-        runAsNonRoot: true
-        fsGroup: 65534
+#      securityContext:
+#        runAsUser: 65534
+#        runAsNonRoot: true
+#        fsGroup: 65534
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate

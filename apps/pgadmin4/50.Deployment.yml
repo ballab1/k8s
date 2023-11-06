@@ -25,7 +25,7 @@ spec:
           emptyDir: {}
       containers:
         - name: pgadmin4
-          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:7.0
+          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:7.8
           env:
             - name: PGADMIN_DEFAULT_EMAIL
               valueFrom:
@@ -56,7 +56,7 @@ spec:
           imagePullPolicy: IfNotPresent
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          imagePullPolicy: IfNotPresent 
+          imagePullPolicy: IfNotPresent
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
@@ -71,4 +71,4 @@ spec:
       maxUnavailable: 25%
       maxSurge: 25%
   revisionHistoryLimit: 10
-  progressDeadlineSeconds: 600 
+  progressDeadlineSeconds: 600

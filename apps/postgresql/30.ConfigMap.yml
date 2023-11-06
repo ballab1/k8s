@@ -6,6 +6,6 @@ metadata:
   labels:
     k8s-app: postgres
 data:
-  POSTGRES_DB: postgresdb
-  POSTGRES_USER: postgresadmin
+  POSTGRES_DB: postgres
+  POSTGRES_USER: postgres
   POSTGRES_PASSWORD: admin123
