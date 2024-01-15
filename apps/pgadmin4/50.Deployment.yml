@@ -25,7 +25,7 @@ spec:
           emptyDir: {}
       containers:
         - name: pgadmin4
-          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:8.0
+          image:  s2.ubuntu.home:5000/thirdparty/pgadmin4:8.2
           env:
             - name: PGADMIN_DEFAULT_EMAIL
               valueFrom:
