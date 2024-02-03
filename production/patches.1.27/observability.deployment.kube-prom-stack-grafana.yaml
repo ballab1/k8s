@@ -6,7 +6,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: s2.ubuntu.home:5000/thirdparty/grafana:${GRAFANA_VERSION}
+        image: s2.ubuntu.home:5000/docker.io/grafana/grafana:${GRAFANA_VERSION}
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000

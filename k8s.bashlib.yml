@@ -1,12 +1,12 @@
 DEV_MASTER: 's5.ubuntu.home'
 PROD_MASTER: 's6.ubuntu.home'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "10.2.0"
+GRAFANA_VERSION: "10.2.3"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
 VERSION: 'K8S_127'
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
-JSONNET_IMAGE: 's2.ubuntu.home:5000/thirdparty/jsonnet:0.18.0-debian-10-r84'
+JSONNET_IMAGE: 's2.ubuntu.home:5000/docker.io/bitnami/jsonnet:0.20.0-debian-11-r106'
 SNAP: '/var/snap/microk8s/current'
 
 PROD:

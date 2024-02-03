@@ -75,7 +75,7 @@ spec:
           command:
             - nginx-prometheus-exporter
             - -nginx.scrape-uri=http://127.0.0.1:8080/metrics
-          image: s2.ubuntu.home:5000/thirdparty/nginx-prometheus-exporter:0.11
+          image: s2.ubuntu.home:5000/docker.io/nginx/nginx-prometheus-exporter:1.1
           ports:
             - name: metrics
               containerPort: 9113

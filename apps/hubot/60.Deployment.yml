@@ -42,7 +42,7 @@ spec:
           command: 
             - redis-server
             - "/etc/redis/redis.conf"
-          image:  s2.ubuntu.home:5000/thirdparty/redis:6.2.6
+          image:  s2.ubuntu.home:5000/docker.io/redis:6.2.6
           resources:
             limits:
               cpu: 200m

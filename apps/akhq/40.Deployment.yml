@@ -29,7 +29,7 @@ spec:
             name: jvm-options
       containers:
         - name: akhq
-          image: s2.ubuntu.home:5000/thirdparty/akhq:0.24.0
+          image: s2.ubuntu.home:5000/docker.io/tchiotludo/akhq:0.24.0
           env:
             - name: KAFKA_BROKERS
               value: 's3.ubuntu.home:9092,s7.ubuntu.home:9092,s8.ubuntu.home:9092'
