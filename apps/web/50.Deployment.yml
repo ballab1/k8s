@@ -39,7 +39,7 @@ spec:
           emptyDir: {}
       containers:
         - name: web
-          image:  s2.ubuntu.home:5000/thirdparty/nginx:1.22.0
+          image:  s2.ubuntu.home:5000/docker.io/nginx:1.22.0
           imagePullPolicy: IfNotPresent 
           ports:
             - name: web

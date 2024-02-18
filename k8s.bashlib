@@ -54,8 +54,9 @@ function k8s.__init() {
 function k8s.add_new_content() {
 
     echo 'adding new content'
+
     for app in "${K8S_APPS[@]}"; do
-        k8s.run "$KUBECTL" create -f "apps/${app}/" ||:
+        k8s.run "$KUBECTL" create -f "${PROGRAM_DIR}/apps/${app}/" ||:
         sleep 30  # wait for initialization to complete
     done
 
@@ -601,7 +602,7 @@ function k8s.parse_config() {
 # -----------------------------------------------------------------------------------
 function k8s.prometheus_service_discovery() {
 
-   local prometheus="$("$KUBECTL" get svc -n monitoring prometheus-k8s -o json|jq '.spec|"http://\(.clusterIP):\(.ports[].port)"')"
+   local prometheus="$("$KUBECTL" get svc -n "$OBSERVABILITY" "$PROMETHEUS_SVC" -o json|jq '.spec|"http://\(.clusterIP):\(.ports[].port)"')"
    curl -s "${prometheus}/api/v1/targets"
 }
 
@@ -717,7 +718,7 @@ function k8s.remove_namespaces() {
     [ -z "$(which microk8s)" ] && return 0
 
     echo 'removing namespaces to ease the pressure created by reinstall'
-    local allowed=' kube-system kube-public kube-node-lease default ingress metallb-system monitoring '
+    local allowed=" kube-system kube-public kube-node-lease default ingress metallb-system ${OBSERVABILITY} "
 
     # get list of namespaces:
     local -a current

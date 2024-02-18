@@ -1,13 +1,14 @@
 DEV_MASTER: 's5.ubuntu.home'
 PROD_MASTER: 's6.ubuntu.home'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "10.2.3"
+GRAFANA_VERSION: "10.3.1"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
 VERSION: 'K8S_127'
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 JSONNET_IMAGE: 's2.ubuntu.home:5000/docker.io/bitnami/jsonnet:0.20.0-debian-11-r106'
 SNAP: '/var/snap/microk8s/current'
+
 
 PROD:
   K8S_NODES:
@@ -43,6 +44,8 @@ PROD:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'observability'
+    PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_127:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.27"
@@ -68,6 +71,8 @@ PROD:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'observability'
+    PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_126:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.26"
@@ -93,6 +98,8 @@ PROD:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_125:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.25"
@@ -118,6 +125,8 @@ PROD:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_124:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.24"
@@ -143,6 +152,8 @@ PROD:
       - 'metrics-server'
       - 'prometheus'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_123:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.23"
@@ -170,6 +181,8 @@ PROD:
 #      - 'dashboard'
 #      - 'dashboard-ingress'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
 
 DEV:
   K8S_NODES:
@@ -195,6 +208,8 @@ DEV:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'observability'
+    PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_127:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.27"
@@ -210,6 +225,8 @@ DEV:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'observability'
+    PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_126:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.26"
@@ -225,6 +242,8 @@ DEV:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_125:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.25"
@@ -240,6 +259,8 @@ DEV:
       - 'metrics-server'
       - 'observability'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_124:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.24"
@@ -253,6 +274,8 @@ DEV:
       - 'hostpath-storage'
       - 'metallb:192.168.169.1-192.168.169.100'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'
   K8S_123:
     INGRESS_CLASS: "kubernetes.io/ingress.class"
     K8S_VERSION: "1.23"
@@ -267,3 +290,5 @@ DEV:
       - 'metrics-server'
       - 'prometheus'
       - 'helm3'
+    OBSERVABILITY: 'monitoring'
+    PROMETHEUS_SVC: 'prometheus-k8s'

@@ -31,7 +31,7 @@ spec:
           emptyDir: {}
       containers:
         - name: kowl
-          image: s2.ubuntu.home:5000/thirdparty/kowl:v1.4.0
+          image: s2.ubuntu.home:5000/docker.io/shopstic/kowl:v1.5.0
           args:
             - '-config.filepath=/etc/kowl/kowl.yml'
           ports:

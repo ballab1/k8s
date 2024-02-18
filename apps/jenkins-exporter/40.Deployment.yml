@@ -36,7 +36,7 @@ spec:
             - /usr/src/app/jenkins_exporter.py
             - '--jenkins'
             - 'https://s3.ubuntu.home/jenkins'
-          image: s2.ubuntu.home:5000/thirdparty/jenkins_exporter:d9c9ebe
+          image: s2.ubuntu.home:5000/docker.io/home/jenkins_exporter:d9c9ebe
           env:
             - name: JENKINS_SERVER
               value: https://s3.ubuntu.home/jenkins 
