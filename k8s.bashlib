@@ -453,7 +453,7 @@ function main() {
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
         mkdir -p "$(pwd)/current" ||:
-        local -r CONFIG_FILE="$(pwd)/current/config.home"
+        local -r CONFIG_FILE="$(pwd)/current/config.${K8S_CLUSTERNAME}.home"
         [ -e "$CONFIG_FILE" ] && cp "$localConfig" "$CONFIG_FILE"
     fi
 

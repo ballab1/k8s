@@ -7,7 +7,7 @@ provisioner: nfs.csi.k8s.io
 parameters:
   server: 10.3.1.4
   share: /volume1/K8S
-reclaimPolicy: Delete
+reclaimPolicy: Retain
 volumeBindingMode: Immediate
 mountOptions:
   - hard
