@@ -1,12 +1,12 @@
 DEV_MASTER: 's5.ubuntu.home'
 PROD_MASTER: 's6.ubuntu.home'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "10.3.1"
+GRAFANA_VERSION: "10.4.2"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
 VERSION: 'K8S_127'
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
-JSONNET_IMAGE: 's2.ubuntu.home:5000/docker.io/bitnami/jsonnet:0.20.0-debian-11-r106'
+JSONNET_IMAGE: 's2.ubuntu.home:5000/docker.io/bitnami/jsonnet:0.20.0-debian-12-r17'
 SNAP: '/var/snap/microk8s/current'
 
 
@@ -25,16 +25,13 @@ PROD:
     K8S_APPS:
       - 'hubot'
       - 'jenkins'
-      - 'jenkins-exporter'
-#      - 'nginx-exporter'
       - 'recipes'
       - 'smee'
       - 'minio'
       - 'versions'
       - 'web'
-#      - 'zoonavigator'
       - 'prometheus'
-      - redpanda
+      - 'redpanda'
     K8S_MODULES:
       - 'ingress'
       - 'dns'
@@ -52,16 +49,13 @@ PROD:
     K8S_APPS:
       - 'hubot'
       - 'jenkins'
-      - 'jenkins-exporter'
-#      - 'nginx-exporter'
       - 'recipes'
       - 'smee'
       - 'minio'
       - 'versions'
       - 'web'
-#      - 'zoonavigator'
       - 'prometheus'
-      - redpanda
+      - 'redpanda'
     K8S_MODULES:
       - 'ingress'
       - 'dns'

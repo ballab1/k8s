@@ -28,7 +28,7 @@ spec:
             claimName: postgres-pv-claim
       containers:
         - name: postgres
-          image: s2.ubuntu.home:5000/docker.io/postgres:16.1-alpine3.18
+          image: s2.ubuntu.home:5000/docker.io/postgres:16.2-alpine3.18
           imagePullPolicy: "IfNotPresent"
           ports:
             - name: postgres
