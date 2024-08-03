@@ -30,7 +30,7 @@ spec:
             - '/app/console'
           args:
             - '--config.filepath=/app/config/config.yml'
-          image: s2.ubuntu.home:5000/docker.io/redpandadata/console:v2.6.1
+          image: s2.ubuntu.home:5000/docker.io/redpandadata/console:v2.7.0
           ports:
             - name: redpanda
               containerPort: 8080
