@@ -25,12 +25,12 @@ spec:
     spec:
       volumes:
         - name: var-storage
-          emptyDir: {} 
+          emptyDir: {}
         - name: run-storage
           emptyDir: {}
         - name: web-storage
           persistentVolumeClaim:
-             claimName: nas-web
+             claimName: pvc-web
         - name: web-metrics
           configMap:
             name: web-metrics
@@ -40,7 +40,7 @@ spec:
       containers:
         - name: web
           image:  s2.ubuntu.home:5000/docker.io/nginx:1.22.0
-          imagePullPolicy: IfNotPresent 
+          imagePullPolicy: IfNotPresent
           ports:
             - name: web
               containerPort: 80
@@ -57,14 +57,14 @@ spec:
               memory: 100Mi
           volumeMounts:
             - name: run-storage
-              mountPath: /var/run 
+              mountPath: /var/run
             - name: var-storage
-              mountPath: /var/cache/nginx 
+              mountPath: /var/cache/nginx
             - name: web-storage
               mountPath: /usr/share/nginx/html
               subPath: web
             - mountPath: /etc/nginx/conf.d/metrics.conf
-              name: web-metrics 
+              name: web-metrics
               subPath: metrics.conf
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
@@ -75,7 +75,7 @@ spec:
           command:
             - nginx-prometheus-exporter
             - -nginx.scrape-uri=http://127.0.0.1:8080/metrics
-          image: s2.ubuntu.home:5000/docker.io/nginx/nginx-prometheus-exporter:1.1
+          image: s2.ubuntu.home:5000/docker.io/nginx/nginx-prometheus-exporter:1.3.0
           ports:
             - name: metrics
               containerPort: 9113
@@ -92,7 +92,7 @@ spec:
               mountPath: /etc/nginx-exporter
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          imagePullPolicy: IfNotPresent 
+          imagePullPolicy: IfNotPresent
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
@@ -107,4 +107,4 @@ spec:
       maxUnavailable: 25%
       maxSurge: 25%
   revisionHistoryLimit: 10
-  progressDeadlineSeconds: 600 
+  progressDeadlineSeconds: 600

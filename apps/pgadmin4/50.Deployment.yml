@@ -21,11 +21,13 @@ spec:
         app.kubernetes.io/name: pgadmin4
     spec:
       volumes:
-        - name: pgadmin-storage
-          emptyDir: {}
+        - name: pgadmin4-storage
+          persistentVolumeClaim:
+            claimName: pvc-pgadmin4
       containers:
         - name: pgadmin4
-          image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:8.10
+          image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:8.12
+          envFrom:
           env:
             - name: PGADMIN_DEFAULT_EMAIL
               valueFrom:
@@ -37,13 +39,22 @@ spec:
                 secretKeyRef:
                   name: pgadmin4
                   key: password
+            - name: PGADMIN_CONFIG_WTF_CSRF_CHECK_DEFAULT
+              value: 'False'
+            - name: PGADMIN_CONFIG_WTF_CSRF_ENABLED
+              value: 'False'
+#            - name: CONFIG_DATABASE_URI
+#              valueFrom:
+#                secretKeyRef:
+#                  name: pgadmin4
+#                  key: config_db
           ports:
             - name: pgadmin4
               containerPort: 80
               protocol: TCP
           volumeMounts:
-            - name: pgadmin-storage
-              mountPath: /var/lib/pgadmin/storage
+            - name: pgadmin4-storage
+              mountPath: /var/lib/pgadmin
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent

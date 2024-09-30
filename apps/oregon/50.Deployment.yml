@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: recipes
-  namespace: recipes
+  name: oregon
+  namespace: oregon
   labels:
-    app.kubernetes.io/component: recipes
-    app.kubernetes.io/name: recipes
+    app.kubernetes.io/component: oregon
+    app.kubernetes.io/name: oregon
     prometheus.monitoring/service: nginx-exporter
   annotations:
     deployment.kubernetes.io/revision: '1'
@@ -13,14 +13,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: recipes
-      app.kubernetes.io/name: recipes
+      app.kubernetes.io/component: oregon
+      app.kubernetes.io/name: oregon
       prometheus.monitoring/service: nginx-exporter
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: recipes
-        app.kubernetes.io/name: recipes
+        app.kubernetes.io/component: oregon
+        app.kubernetes.io/name: oregon
         prometheus.monitoring/service: nginx-exporter
     spec:
       volumes:
@@ -28,9 +28,9 @@ spec:
           emptyDir: {}
         - name: run-storage
           emptyDir: {}
-        - name: recipe-storage
+        - name: oregon-storage
           persistentVolumeClaim:
-             claimName: pvc-recipes
+             claimName: pvc-oregon
         - name: web-metrics
           configMap:
             name: web-metrics
@@ -38,11 +38,11 @@ spec:
         - name: nginx-exporter-storage
           emptyDir: {}
       containers:
-        - name: recipes
+        - name: oregon
           image:  s2.ubuntu.home:5000/docker.io/nginx:1.22.0
           imagePullPolicy: IfNotPresent
           ports:
-            - name: recipes
+            - name: oregon
               containerPort: 80
               protocol: TCP
 #            - name: metrics
@@ -60,9 +60,9 @@ spec:
               mountPath: /var/run
             - name: var-storage
               mountPath: /var/cache/nginx
-            - name: recipe-storage
+            - name: oregon-storage
               mountPath: /usr/share/nginx/html
-              subPath: recipes
+              subPath: Oregon
             - mountPath: /etc/nginx/conf.d/metrics.conf
               name: web-metrics
               subPath: metrics.conf
@@ -98,8 +98,8 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: recipes
-      serviceAccount: recipes
+      serviceAccountName: oregon
+      serviceAccount: oregon
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate

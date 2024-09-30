@@ -1,13 +1,15 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nas-web
+  name: pvc-web
   namespace: web
 spec:
   accessModes:
     - ReadOnlyMany
-  storageClassName: ""
   resources:
     requests:
       storage: 1M
-  volumeName: nas-web
+  selector:
+    matchLabels:
+      pv-key: k8s-smb
+  storageClassName: smb-storage

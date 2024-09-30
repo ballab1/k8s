@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: smb-006
+  annotations:
+    pv.kubernetes.io/provisioned-by: smb.csi.k8s.io
+  labels:
+    pv-key: k8s-smb
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: smb-storage
+  mountOptions:
+    - dir_mode=0755
+    - file_mode=0755
+    - cache=strict
+    - mapposix
+    - noforcegid
+    - noforceuid
+    - nounix
+    - soft
+  csi:
+    driver: smb.csi.k8s.io
+    fsType: ext4
+    controllerExpandSecretRef:
+      name: smb-csi-credentials
+      namespace: smb-csi
+    controllerPublishSecretRef:
+      name: smb-csi-credentials
+      namespace: smb-csi
+    nodeExpandSecretRef:
+      name: smb-csi-credentials
+      namespace: smb-csi
+    nodePublishSecretRef:
+      name: smb-csi-credentials
+      namespace: smb-csi
+    nodeStageSecretRef:
+      name: smb-csi-credentials
+      namespace: smb-csi
+    volumeAttributes:
+      source: //10.3.1.4/K8S
+    volumeHandle: //10.3.1.4/K8S

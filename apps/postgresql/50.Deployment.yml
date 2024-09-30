@@ -25,7 +25,7 @@ spec:
       volumes:
         - name: postgredb
           persistentVolumeClaim:
-            claimName: postgres-pv-claim
+            claimName: pvc-postgres
       containers:
         - name: postgres
           image: s2.ubuntu.home:5000/docker.io/postgres:16.2-alpine3.18
