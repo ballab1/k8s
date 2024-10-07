@@ -5,7 +5,7 @@ metadata:
   namespace: web
 spec:
   accessModes:
-    - ReadOnlyMany
+    - ReadWriteMany
   resources:
     requests:
       storage: 1M

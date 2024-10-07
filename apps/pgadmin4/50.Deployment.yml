@@ -24,11 +24,14 @@ spec:
         - name: pgadmin4-storage
           persistentVolumeClaim:
             claimName: pvc-pgadmin4
+            readOnly: false
       containers:
         - name: pgadmin4
           image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:8.12
           envFrom:
           env:
+            - name: USER
+              value: pgadmin
             - name: PGADMIN_DEFAULT_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -39,22 +42,14 @@ spec:
                 secretKeyRef:
                   name: pgadmin4
                   key: password
-            - name: PGADMIN_CONFIG_WTF_CSRF_CHECK_DEFAULT
-              value: 'False'
-            - name: PGADMIN_CONFIG_WTF_CSRF_ENABLED
-              value: 'False'
-#            - name: CONFIG_DATABASE_URI
-#              valueFrom:
-#                secretKeyRef:
-#                  name: pgadmin4
-#                  key: config_db
           ports:
             - name: pgadmin4
               containerPort: 80
               protocol: TCP
           volumeMounts:
             - name: pgadmin4-storage
-              mountPath: /var/lib/pgadmin
+              mountPath: /var/lib/pgadmin4
+              subPath: pgadmin4
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
@@ -66,6 +61,10 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
+      securityContext:
+        fsGroup: 5050
+        runAsUser: 5050
+        runAsGroup: 5050
       serviceAccountName: pgadmin4
       serviceAccount: pgadmin4
       schedulerName: default-scheduler

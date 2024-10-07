@@ -10,21 +10,21 @@ spec:
   capacity:
     storage: 1Ti
   accessModes:
-    - ReadOnlyMany
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: smb-storage
   mountOptions:
+    - cache=strict
     - dir_mode=0755
     - file_mode=0755
-    - cache=strict
+    - forcegid
+    - forceuid
     - mapposix
-    - noforcegid
-    - noforceuid
-    - nounix
+    - noperm
     - soft
   csi:
     driver: smb.csi.k8s.io
-    readOnly: true
+    readOnly: false
     fsType: ext4
     controllerExpandSecretRef:
       name: smb-csi-credentials

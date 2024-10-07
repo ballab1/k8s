@@ -5,7 +5,7 @@ metadata:
   namespace: oregon
 spec:
   accessModes:
-    - ReadOnlyMany
+    - ReadWriteMany
   resources:
     requests:
       storage: 1M
