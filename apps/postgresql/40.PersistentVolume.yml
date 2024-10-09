@@ -1,18 +1,15 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: hp-pgadmin4
+  name: hp-postgres
 spec:
   capacity:
-    storage: 100Mi
+    storage: 1Ti
   accessModes:
     - ReadWriteMany
   claimRef:
     kind: PersistentVolumeClaim
-    namespace: pgadmin4
-    name: pvc-pgadmin4
+    namespace: postgres
+    name: pvc-postgres
     apiVersion: v1
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: microk8s-hostpath
-  hostPath:
-    path: /tmp/pgadmin-pv

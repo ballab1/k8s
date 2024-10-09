@@ -3,16 +3,14 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-pgadmin4
   namespace: pgadmin4
-  labels:
-    type: local
 spec:
   accessModes:
     - ReadWriteMany
   resources:
     requests:
       storage: 100M
-  volumeName: smb-006
+  volumeName: hp-pgadmin4
 #  selector:
 #    matchLabels:
 #      pv-key: k8s-smb
-  storageClassName: smb-storage
+#  storageClassName: smb-storage

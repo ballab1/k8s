@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin4-config
+  namespace: pgadmin4
+data:
+  servers.json: |
+     {
+         "Servers": {
+             "1": {
+                 "Name": "postgres",
+                 "Group": "Server Group",
+                 "Port": 5432,
+                 "Username": "bobb",
+                 "Host": "postgres.postgres.svc.cluster.local",
+                 "SSLMode": "prefer",
+                 "MaintenanceDB": "postgres"
+             }
+         }
+     }
+  config_local.py: |
+    CONFIG_DATABASE_URI =  'postgresql://bobb:123Oleary@postgres.postgres.svc.cluster.local:5432/pgadmin4'

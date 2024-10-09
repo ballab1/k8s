@@ -21,6 +21,9 @@ spec:
         app.kubernetes.io/name: pgadmin4
     spec:
       volumes:
+        - name: config
+          configMap:
+            name: pgadmin4-config
         - name: pgadmin4-storage
           persistentVolumeClaim:
             claimName: pvc-pgadmin4
@@ -47,9 +50,17 @@ spec:
               containerPort: 80
               protocol: TCP
           volumeMounts:
+            - name: config
+              mountPath: /pgadmin4/config_local.py
+              subPath: config_local.py
+              readOnly: true
+            - name: config
+              mountPath: /pgadmin4/servers.json
+              subPath: servers.json
             - name: pgadmin4-storage
-              mountPath: /var/lib/pgadmin4
-              subPath: pgadmin4
+              mountPath: /var/lib/pgadmin
+#              subPath: pgadmin4
+              readOnly: false
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
