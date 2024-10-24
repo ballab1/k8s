@@ -40,6 +40,7 @@ spec:
                 name: postgres-config
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
+              subPath: postgresql
               name: postgredb
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File

@@ -3,16 +3,14 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-postgres
   namespace: postgres
-  labels:
-    type: local
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 100M
-  volumeName: hp-postgres
+  volumeName: pv-smb-postgres
 #  selector:
 #    matchLabels:
 #      pv-key: k8s-smb
-#  storageClassName: smb-storage
+  storageClassName: smb-storage
