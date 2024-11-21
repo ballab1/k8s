@@ -30,7 +30,7 @@ spec:
             readOnly: false
       containers:
         - name: pgadmin4
-          image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:8.12
+          image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:8.13
           envFrom:
           env:
             - name: USER

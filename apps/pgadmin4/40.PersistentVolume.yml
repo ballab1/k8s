@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: hp-pgadmin4
+  name: pv-hp-pgadmin4
 spec:
   capacity:
-    storage: 100Mi
+    storage: 10Mi
   accessModes:
     - ReadWriteMany
   claimRef:
@@ -15,4 +15,4 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: microk8s-hostpath
   hostPath:
-    path: /tmp/pgadmin-pv
+    path: /tmp/pv-pgadmin4

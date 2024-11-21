@@ -20,10 +20,11 @@ LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
 #    k8s.separator k8s.capture_config
 #    k8s.separator k8s.update_jenkins
     k8s.separator k8s.capture_ips_for_gui
+    jq -r '[.[]|"  \(.title): \(.host):\(.port)"]|sort[]' current/services_ips.json
 #    k8s.separator k8s.capture_status
 
   } 2>&1
 ) | tee "${LOGFILE}"
 
 sed -i -E -e 's/\x1b\[[0-9;]*m//g' "${LOGFILE}"
-exit 0 
+exit 0

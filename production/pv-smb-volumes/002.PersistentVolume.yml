@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: smb-005
+  name: pv-smb-002
   annotations:
     pv.kubernetes.io/provisioned-by: smb.csi.k8s.io
   labels:
@@ -21,7 +21,6 @@ spec:
     - forceuid
     - mapposix
     - noperm
-    - setuids
     - soft
   csi:
     driver: smb.csi.k8s.io

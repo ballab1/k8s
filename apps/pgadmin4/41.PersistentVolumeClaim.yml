@@ -9,8 +9,4 @@ spec:
   resources:
     requests:
       storage: 100M
-  volumeName: hp-pgadmin4
-#  selector:
-#    matchLabels:
-#      pv-key: k8s-smb
-#  storageClassName: smb-storage
+  volumeName: pv-hp-pgadmin4
