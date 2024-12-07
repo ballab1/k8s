@@ -29,7 +29,7 @@ spec:
             readOnly: false
       containers:
         - name: postgres
-          image: s2.ubuntu.home:5000/docker.io/postgres:16.2-alpine3.18
+          image: s2.ubuntu.home:5000/docker.io/postgres:16.6-alpine3.19
           imagePullPolicy: "IfNotPresent"
           ports:
             - name: postgres

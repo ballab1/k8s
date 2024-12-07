@@ -3,31 +3,21 @@
 # declarations of MUST HAVE globals
 PROGRAM_DIR=~/GIT/k8s
 PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
-LOGFILE="$(pwd)/${PROGRAM_NAME}.log"
-NS=monitoring
+WORKSPACE='/home/bobb/workspace'
+LOGFILE="${WORKSPACE}/current/${PROGRAM_NAME}.log"
+cd "${WORKSPACE}" ||:
+mkdir -p current ||:
+source "${PROGRAM_DIR}/k8s.bashlib"
 {
   declare -i status
   (
-    source "${PROGRAM_DIR}/k8s.bashlib"
     k8s.__init
-    cd /home/bobb/workspace
-    [ "${K8S_VERSION:-}" > 1.24] && ns='observability'
-
-    KUBECTL=microk8s.kubectl
-    k8s.load_namespace 'prometheus' 'delete'
-    microk8s disable prometheus
-    microk8s enable prometheus
-    k8s.run "$KUBECTL" patch deployment grafana -n "$ns" -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/docker.io/grafana/grafana:11.1.5"}]}}}}'
-    k8s.run "$KUBECTL" patch service alertmanager-main -n $ns" -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.run "$KUBECTL" patch service prometheus-k8s -n $ns" -p '{"spec":{"type":"LoadBalancer"}}'
-    k8s.load_namespace 'prometheus'
-    k8s.run "$KUBECTL" patch Prometheus/k8s -n $ns" --patch-file=./production/Prometheus.k8s.yml --type='merge'
-    k8s.capture_ips_for_gui
+    k8s.reinstall_prometheus
 
   ) && status=$? || status=$? 2>&1
   [ "$status" -eq 0 ] || echo "exit code ${status}"
 
 } | tee "${LOGFILE}"
 
-sed -i -E -e 's/\x1b\[[0-9;]*m//g' "${LOGFILE}"
+sed -i -E -e "${k8s_NO_ASCII}" "${LOGFILE}"
 exit 0

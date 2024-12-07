@@ -1,0 +1,14 @@
+---
+version: 0.1.0
+extraKubeletArgs:
+  --cluster-dns: 10.153.183.10
+  --cluster-domain: cluster.local
+extraCNIEnv:
+  IPv4_SUPPORT: true
+  IPv4_CLUSTER_CIDR: 10.2.0.0/16
+  IPv4_SERVICE_CIDR: 10.153.183.0/24
+extraSANs:
+  - 10.153.183.1
+addons:
+  - name: dns
+    args: [/etc/resolv.conf, 10.153.183.10]

@@ -1,9 +1,10 @@
 DEV_MASTER: 's5.ubuntu.home'
+DEV_VERSION: 'K8S_131'
 PROD_MASTER: 's6.ubuntu.home'
+PROD_VERSION: 'K8S_127'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "11.3.0"
+GRAFANA_VERSION: "11.3.1"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
-VERSION: 'K8S_127'
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
 JSONNET_IMAGE: 's2.ubuntu.home:5000/docker.io/bitnami/jsonnet:0.20.0-debian-12-r17'
@@ -19,27 +20,49 @@ PROD:
   JENKINS_TOKEN_KEY: '5f755933-ec77-4486-8725-3967901502b4'
   K8S_CLUSTERNAME: 'prodk8s'
   K8S_CLUSTER: 'production-cluster'
+  K8S_131:
+    INGRESS_CLASS: 'spec.ingressClassName'
+    K8S_VERSION: "1.31"
+    K8S_APPS:
+      - 'hubot'
+      - 'jenkins'
+#      - 'minio'
+      - 'postgres'
+      - 'prometheus'
+      - 'recipes'
+      - 'redpanda'
+      - 'smee'
+      - 'versions'
+      - 'web'
+    K8S_MODULES:
+      - 'dns'
+      - 'helm3'
+      - 'hostpath-storage'
+      - 'ingress'
+      - 'metrics-server'
+      - 'observability'
+      - 'registry'
   K8S_128:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.28"
     K8S_APPS:
       - 'hubot'
       - 'jenkins'
+#      - 'minio'
+      - 'prometheus'
       - 'recipes'
+      - 'redpanda'
       - 'smee'
-      - 'minio'
       - 'versions'
       - 'web'
-      - 'prometheus'
-      - 'redpanda'
     K8S_MODULES:
-      - 'ingress'
       - 'dns'
-      - 'storage'
+      - 'helm3'
       - 'hostpath-storage'
+      - 'ingress'
       - 'metrics-server'
       - 'observability'
-      - 'helm3'
+      - 'registry'
     OBSERVABILITY: 'observability'
     PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_127:
@@ -48,21 +71,21 @@ PROD:
     K8S_APPS:
       - 'hubot'
       - 'jenkins'
+#      - 'minio'
+      - 'prometheus'
       - 'recipes'
+      - 'redpanda'
       - 'smee'
-      - 'minio'
       - 'versions'
       - 'web'
-      - 'prometheus'
-      - 'redpanda'
     K8S_MODULES:
-      - 'ingress'
       - 'dns'
-      - 'storage'
+      - 'helm3'
       - 'hostpath-storage'
+      - 'ingress'
       - 'metrics-server'
       - 'observability'
-      - 'helm3'
+      - 'registry'
     OBSERVABILITY: 'observability'
     PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_126:
@@ -181,6 +204,22 @@ DEV:
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
   K8S_CLUSTERNAME: 'devk8s'
   K8S_CLUSTER: 'development-cluster'
+  K8S_131:
+    INGRESS_CLASS: 'spec.ingressClassName'
+    K8S_VERSION: "1.31"
+    K8S_APPS:
+      - 'jenkins'
+      - 'prometheus'
+    K8S_MODULES:
+      - 'dns'
+      - 'helm3'
+      - 'hostpath-storage'
+      - 'ingress'
+      - 'metrics-server'
+      - 'observability'
+      - 'registry'
+    OBSERVABILITY: 'observability'
+    PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_128:
     INGRESS_CLASS: 'spec.ingressClassName'
     K8S_VERSION: "1.28"
@@ -188,13 +227,13 @@ DEV:
       - 'jenkins'
       - 'prometheus'
     K8S_MODULES:
-      - 'ingress'
       - 'dns'
-      - 'storage'
+      - 'helm3'
       - 'hostpath-storage'
+      - 'ingress'
       - 'metrics-server'
       - 'observability'
-      - 'helm3'
+      - 'registry'
     OBSERVABILITY: 'observability'
     PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_127:
@@ -204,13 +243,13 @@ DEV:
       - 'jenkins'
       - 'prometheus'
     K8S_MODULES:
-      - 'ingress'
       - 'dns'
-      - 'storage'
+      - 'helm3'
       - 'hostpath-storage'
+      - 'ingress'
       - 'metrics-server'
       - 'observability'
-      - 'helm3'
+      - 'registry'
     OBSERVABILITY: 'observability'
     PROMETHEUS_SVC: 'kube-prom-stack-kube-prome-prometheus'
   K8S_126:
