@@ -5,7 +5,10 @@
 #----------------------------------------------------------------------------------------------
 
 declare -r k8s_NO_ASCII='s|\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mK]||g'
+declare -r SQL_FILE='2024-12-21.postgres.sql'
+declare -r MAX_ITER=20
 
+# -----------------------------------------------------------------------------------
 function k8s.__init() {
 
     # shellcheck disable=SC2034
@@ -289,6 +292,12 @@ EOF
     [ "$(< "$tokenFile")" ] || (rm "$tokenFile" ||:)
 
     k8s.log_elapsed "${FUNCNAME[0]}"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.get_last_SQL_BACKUP() {
+
+   echo "/home/bobb/workspace/${SQL_FILE}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -826,6 +835,26 @@ function k8s.remove_persistentvolumes() {
     echo
 }
 
+function k8s.restore_postgres() {
+
+  local POSTGRES_NAMESPACE='postgres'
+  local POSTGES_PVNAME='pv-hp-postgres'
+  local PGADMIN_NAMESPACE='pgadmin4'
+  local PGADMIN_PVNAME='pv-hp-pgadmin4'
+
+
+  # verify KUBECTL exists
+  if [ "${#KUBECTL}" -eq 0 ];then
+    echo "kubectl: does not exist"
+    exit
+  fi
+
+  local dbms_pod="$(k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME")"
+  k8s.verify_dbms "$POSTGRES_NAMESPACE" "$dbms_pod"
+
+  k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" '5050:5050'
+}
+
 # -----------------------------------------------------------------------------------
 function k8s.run() {
   {
@@ -1009,6 +1038,93 @@ function k8s.update_jenkins_config() {
         fi
         rm "$configXml"
     fi
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.verify_dbms() {
+
+  local -r NAMESPACE="${1:?}"
+  local -r POD="${2:?}"
+  local -r INIT_MSG='LOG:  database system is ready to accept connections'
+
+  # wait until postgres DB is ready for connections
+  local lines=''
+  local -i count=0
+  while true; do
+    lines="$("$KUBECTL" logs --namespace "$NAMESPACE" "$POD" | grep "$INIT_MSG")"
+    [ "$(wc -l <<< "$lines")" -gt 0 ] && break
+    if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
+      echo "Unable to determine if Database is running"
+      exit
+    fi
+    sleep 2
+  done
+
+  # load last backup into DBMS
+  local sql_file="$(k8s.get_last_SQL_BACKUP)"
+  "$KUBECTL" cp ~/"workspace/$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
+  {
+    "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$sql_file"
+  } 2>&1 | tee restore_postgres.sql.log
+  "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- rm "/tmp/$sql_file"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.verify_hostpath() {
+
+  local -r NAMESPACE="${1:?}"
+  local -r PV_NAME="${2:?}"
+  local -r PERMS="${3:-}"
+
+  # verify NAMESPACE exists
+  if [ "$("$KUBECTL" get namespace -o json | jq -r '[.items[]|select(.metadata.name == "'"$NAMESPACE"'" and .status.phase == "Active")]|length')" -eq 0 ];then
+    echo "Namespace: ${NAMESPACE} does not exist"
+    exit
+  fi
+
+  # verify host defined
+  local -r host="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].status.hostIP}')"
+  if [ "${#host}" -eq 0 ];then
+    echo "Host: not defined"
+    exit
+  fi
+
+  # verify directory defined
+  local -r dir="$("$KUBECTL" get pv "$PV_NAME" -o=jsonpath='{.spec.hostPath.path}')"
+  if [ "${#dir}" -eq 0 ];then
+    echo "Dir: not defined"
+    exit
+  fi
+
+  # verify pod defined
+  local pod="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].metadata.name}')"
+  if [ "${#pod}" -eq 0 ];then
+    echo "Pod: not defined"
+    exit
+  fi
+
+  # make sure DBMS has local directory
+  #shellcheck disable=SC2029
+  ssh "$host" "sudo rm -rf '$dir';mkdir -p '$dir' ||:"
+  if [ "${#PERMS}" -gt 0 ]; then
+    #shellcheck disable=SC2029
+    ssh "$host" "sudo chown -R '$PERMS' '$dir'"
+  else
+    echo "$pod"
+  fi
+
+  # wait for pod to start
+  local phase
+  local -i count=0
+  while true; do
+    phase="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].status.phase}')"
+    [ "$phase" = 'Running' ] && break
+    if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
+      echo "Unable to determine if pod: ${pod} is running"
+      exit
+    fi
+    sleep 2
+  done
 }
 
 # -----------------------------------------------------------------------------------
