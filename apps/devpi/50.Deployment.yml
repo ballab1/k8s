@@ -1,0 +1,66 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: devpi
+  namespace: devpi
+  labels:
+    app.kubernetes.io/component: devpi
+    app.kubernetes.io/name: devpi
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: devpi
+      app.kubernetes.io/name: devpi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: devpi
+        app.kubernetes.io/name: devpi
+    spec:
+      volumes:
+        - name: devpi-data
+          persistentVolumeClaim:
+            claimName: pvc-devpi
+            readOnly: false
+      containers:
+        - name: devpi
+          image:  s2.ubuntu.home:5000/docker.io/muccg/devpi:4.5.0
+          envFrom:
+          env:
+            - name: DEVPI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devpi
+                  key: password
+          ports:
+            - name: devpi
+              containerPort: 3141
+              protocol: TCP
+          volumeMounts:
+            - name: devpi-data
+              mountPath: /data
+              readOnly: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: devpi
+      serviceAccount: devpi
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

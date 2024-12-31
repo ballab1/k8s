@@ -5,7 +5,6 @@
 #----------------------------------------------------------------------------------------------
 
 declare -r k8s_NO_ASCII='s|\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mK]||g'
-declare -r SQL_FILE='2024-12-21.postgres.sql'
 declare -r MAX_ITER=20
 
 # -----------------------------------------------------------------------------------
@@ -297,7 +296,7 @@ EOF
 # -----------------------------------------------------------------------------------
 function k8s.get_last_SQL_BACKUP() {
 
-   echo "/home/bobb/workspace/${SQL_FILE}"
+   echo "/home/bobb/workspace/${SQL_FILE:-###########}"
 }
 
 # -----------------------------------------------------------------------------------
@@ -835,12 +834,14 @@ function k8s.remove_persistentvolumes() {
     echo
 }
 
-function k8s.restore_postgres() {
+function k8s.restore_hostpath() {
 
   local POSTGRES_NAMESPACE='postgres'
   local POSTGES_PVNAME='pv-hp-postgres'
   local PGADMIN_NAMESPACE='pgadmin4'
   local PGADMIN_PVNAME='pv-hp-pgadmin4'
+  local DEVPI_NAMESPACE='devpi'
+  local DEVPI_PVNAME='pv-hp-devpi'
 
 
   # verify KUBECTL exists
@@ -853,6 +854,8 @@ function k8s.restore_postgres() {
   k8s.verify_dbms "$POSTGRES_NAMESPACE" "$dbms_pod"
 
   k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" '5050:5050'
+
+  k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPII_PVNAME"
 }
 
 # -----------------------------------------------------------------------------------
@@ -1060,8 +1063,13 @@ function k8s.verify_dbms() {
     sleep 2
   done
 
-  # load last backup into DBMS
   local sql_file="$(k8s.get_last_SQL_BACKUP)"
+  if [ ! -f "$sql_file" ]; then
+    echo 'Backup file not found' >&2
+    exit 1
+  fi
+
+  # load last backup into DBMS
   "$KUBECTL" cp ~/"workspace/$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
   {
     "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$sql_file"
