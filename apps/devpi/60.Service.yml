@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: devpi
+  namespace: devpi
+  labels:
+    app.kubernetes.io/component: devpi
+    app.kubernetes.io/name: devpi
+spec:
+  ports:
+    - name: devpi
+      protocol: TCP
+      port: 3141
+      targetPort: devpi
+  selector:
+    app.kubernetes.io/component: devpi
+    app.kubernetes.io/name: devpi
+  sessionAffinity: None
+  type: LoadBalancer

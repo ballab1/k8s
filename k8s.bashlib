@@ -5,8 +5,12 @@
 #----------------------------------------------------------------------------------------------
 
 declare -r k8s_NO_ASCII='s|\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mK]||g'
-declare -r SQL_FILE='2024-12-21.postgres.sql'
 declare -r MAX_ITER=20
+declare -r GREEN='\x1b[32m'
+declare -r GREY='\x1b[90m'
+declare -r RED='\x1b[31m'
+declare -r RESET='\x1b[0m'
+
 
 # -----------------------------------------------------------------------------------
 function k8s.__init() {
@@ -76,7 +80,7 @@ function k8s.add_nodes_to_cluster() {
     local cmd ip node
 
     # get our local ip4 address
-    ip="$(ip -4 -j address|jq -r '.[]|select(.qdisc == "fq_codel").addr_info[0].local')"
+    ip="$(k8s.get_local_ip_address)"
 
     # add nodes to cluster
     for node in "${K8S_NODES[@]}"; do
@@ -295,9 +299,16 @@ EOF
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.get_last_SQL_BACKUP() {
+function k8s.get_latest_file() {
 
-   echo "/home/bobb/workspace/${SQL_FILE}"
+   local filename="${1:?}"
+   echo "/home/bobb/workspace/${filename:-###########}"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.get_local_ip_address() {
+
+    ip -4 -j address|jq -r '.[]|select(.qdisc != "noqueue").addr_info[0].local'
 }
 
 # -----------------------------------------------------------------------------------
@@ -835,12 +846,14 @@ function k8s.remove_persistentvolumes() {
     echo
 }
 
-function k8s.restore_postgres() {
+function k8s.restore_hostpath() {
 
   local POSTGRES_NAMESPACE='postgres'
   local POSTGES_PVNAME='pv-hp-postgres'
   local PGADMIN_NAMESPACE='pgadmin4'
   local PGADMIN_PVNAME='pv-hp-pgadmin4'
+  local DEVPI_NAMESPACE='devpi'
+  local DEVPI_PVNAME='pv-hp-devpi'
 
 
   # verify KUBECTL exists
@@ -849,10 +862,16 @@ function k8s.restore_postgres() {
     exit
   fi
 
-  local dbms_pod="$(k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME")"
-  k8s.verify_dbms "$POSTGRES_NAMESPACE" "$dbms_pod"
+  local pod_name=''
+  k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
+  k8s.verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
+  echo
 
-  k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" '5050:5050'
+  k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' '5050:5050' || exit
+  echo
+
+  k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
+  echo
 }
 
 # -----------------------------------------------------------------------------------
@@ -969,7 +988,7 @@ function k8s.update_kube_config() {
     else
         k8s.run microk8s config > "$config_file"
     fi
-    ip="$(ip -4 -j address|jq -r '.[]|select(.qdisc == "fq_codel").addr_info[0].local')"
+    ip="$(k8s.get_local_ip_address)"
     sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$config_file"
 
     local -r src_config="$(readlink -f "$config_file")"
@@ -1047,26 +1066,37 @@ function k8s.verify_dbms() {
   local -r POD="${2:?}"
   local -r INIT_MSG='LOG:  database system is ready to accept connections'
 
-  # wait until postgres DB is ready for connections
+  echo -n 'wait until postgres DBMS is ready for connections '
   local lines=''
   local -i count=0
   while true; do
-    lines="$("$KUBECTL" logs --namespace "$NAMESPACE" "$POD" | grep "$INIT_MSG")"
+    lines="$("$KUBECTL" logs --namespace "$NAMESPACE" "$POD" | grep "$INIT_MSG" ||:)"
     [ "$(wc -l <<< "$lines")" -gt 0 ] && break
     if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
-      echo "Unable to determine if Database is running"
-      exit
+      echo
+      echo -e " ... ${RED}Unable to determine if Database is running${RESET}"
+      return 1
     fi
     sleep 2
+    echo -n '.'
   done
+  echo
 
-  # load last backup into DBMS
-  local sql_file="$(k8s.get_last_SQL_BACKUP)"
-  "$KUBECTL" cp ~/"workspace/$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
+  local sql_file="$(k8s.get_latest_file "$SQL_FILE")"
+  if [ ! -f "$sql_file" ]; then
+    echo -e " ... ${RED}Backup file not found${RESET}"
+    return 1
+  fi
+
+  echo "load last backup '$sql_file' into DBMS"
+  sleep 2  # let filesystem quiesce to ensure DBMS is available
+  "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${POD}:/tmp/$SQL_FILE"
+  sleep 2  # let filesystem quiesce to ensure file is available
   {
-    "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$sql_file"
+    "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$SQL_FILE"
   } 2>&1 | tee restore_postgres.sql.log
-  "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- rm "/tmp/$sql_file"
+  "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- rm "/tmp/$SQL_FILE"
+  return 0
 }
 
 # -----------------------------------------------------------------------------------
@@ -1074,57 +1104,67 @@ function k8s.verify_hostpath() {
 
   local -r NAMESPACE="${1:?}"
   local -r PV_NAME="${2:?}"
-  local -r PERMS="${3:-}"
+  local -r POD_NAME="${3:?}"
+  local -r PERMS="${4:-}"
 
-  # verify NAMESPACE exists
+
+  echo "verify NAMESPACE: '$NAMESPACE' exists"
   if [ "$("$KUBECTL" get namespace -o json | jq -r '[.items[]|select(.metadata.name == "'"$NAMESPACE"'" and .status.phase == "Active")]|length')" -eq 0 ];then
-    echo "Namespace: ${NAMESPACE} does not exist"
-    exit
+    echo -e " ${RED}Namespace: ${NAMESPACE} does not exist${RESET}"
+    return 1
   fi
 
-  # verify host defined
+  echo -n "verify host defined"
   local -r host="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].status.hostIP}')"
   if [ "${#host}" -eq 0 ];then
-    echo "Host: not defined"
-    exit
+    echo -e " ... ${RED}Host: not defined${RESET}"
+    return 1
   fi
+  echo -e " ... ${GREEN}found ${host}${RESET}"
 
-  # verify directory defined
+  echo -n "verify PV directory for ${PV_NAME} defined"
   local -r dir="$("$KUBECTL" get pv "$PV_NAME" -o=jsonpath='{.spec.hostPath.path}')"
   if [ "${#dir}" -eq 0 ];then
-    echo "Dir: not defined"
-    exit
+    echo -e " ${RED}... Dir: not defined${RESET}"
+    return 1
   fi
+  echo -e " ... ${GREEN}directory found. PV:${PV_NAME} uses ${dir}${RESET}"
 
-  # verify pod defined
+  echo -n 'verify pod defined'
   local pod="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].metadata.name}')"
   if [ "${#pod}" -eq 0 ];then
-    echo "Pod: not defined"
-    exit
+    echo -e " ... ${RED}Pod: not defined${RESET}"
+    return 1
   fi
+  echo -e " ... ${GREEN}found ${pod}${RESET}"
 
-  # make sure DBMS has local directory
+  echo "make sure PV:${PV_NAME} has local directory on '$host':"
+  echo -e " ... ${GREY}'sudo rm -rf '$dir';mkdir -p '$dir'${RESET}"
   #shellcheck disable=SC2029
   ssh "$host" "sudo rm -rf '$dir';mkdir -p '$dir' ||:"
   if [ "${#PERMS}" -gt 0 ]; then
     #shellcheck disable=SC2029
     ssh "$host" "sudo chown -R '$PERMS' '$dir'"
-  else
-    echo "$pod"
   fi
 
-  # wait for pod to start
+  echo -n "wait for pod '$pod' to start "
   local phase
   local -i count=0
   while true; do
     phase="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].status.phase}')"
     [ "$phase" = 'Running' ] && break
     if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
-      echo "Unable to determine if pod: ${pod} is running"
-      exit
+      echo
+      echo -e " ... ${RED}Unable to determine if pod: ${pod} is running${RESET}"
+      return 1
     fi
     sleep 2
+    echo -n '.'
   done
+  echo
+
+  [ "${#POD_NAME}" -gt 0 ] && eval "${POD_NAME}='$pod'"
+  return 0
 }
 
 # -----------------------------------------------------------------------------------

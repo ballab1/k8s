@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devpi-ingress
+  namespace: devpi
+  annotations:
+    spec.ingressClassName: public
+spec:
+  rules:
+  - host: "devpi.k8s.home"
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: devpi
+              port:
+                number: 3141

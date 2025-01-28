@@ -25,6 +25,7 @@ PROD:
     K8S_VERSION: "1.31"
     K8S_APPS:
       - 'hubot'
+      - 'devpi'
       - 'jenkins'
 #      - 'minio'
       - 'postgres'
@@ -70,6 +71,7 @@ PROD:
     K8S_VERSION: "1.27"
     K8S_APPS:
       - 'hubot'
+      - 'devpi'
       - 'jenkins'
 #      - 'minio'
       - 'prometheus'
