@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka2sql-config
+  namespace: kafka2sql
+data:
+  configroot.yaml: |
+    framework:
+      log_level: INFO
+
+    kafka:
+      bootstrap_servers:
+        - "s2.ubuntu.home:9092,s7.ubuntu.home:9092,s8.ubuntu.home:9092"
+
+      consumers:
+        - enabled: True
+          name: "kafkatosql-core-schema"
+          topics:
+            # Topic partition number and offset will be set programmatically.
+            - name: "jenkins-build-report"
+
+          group_id: "kafkatosql-core-schema-gid"
+          client_id: "kafkatosql-core-schema-cid"
+          auto_offset_reset: 'earliest'
+
+        - enabled: True
+          name: "kafkatosql-kafka-schema"
+          topics:
+            # Topic partition and offset will be set programmatically.
+            - name: "uptime"
+
+          group_id: "kafkatosql-core-schema-gid"
+          client_id: "kafkatosql-core-schema-cid"
+          auto_offset_reset: 'earliest'
+
+
+    database:
+        host: postgres.postgres.svc.cluster.local
+        port: 5432
+        dbname: kafka
+        user: kafka2sql
+        password_path: test/unit/app-secret
+        password: mypassword
+        options: "-c search_path=core,dump"
+        reconnection_delta_seconds: 1

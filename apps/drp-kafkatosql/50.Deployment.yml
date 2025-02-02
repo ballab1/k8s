@@ -1,0 +1,62 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: kafka2sql
+  namespace: kafka2sql
+  labels:
+    app.kubernetes.io/component: kafka2sql
+    app.kubernetes.io/name: kafka2sql
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kafka2sql
+      app.kubernetes.io/name: kafka2sql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kafka2sql
+        app.kubernetes.io/name: kafka2sql
+    spec:
+      volumes:
+        - name: kafka2sql-data
+          persistentVolumeClaim:
+            claimName: pvc-kafka2sql
+            readOnly: false
+      containers:
+        - name: kafka2sql
+          image:  s2.ubuntu.home:5000/docker.io/muccg/kafka2sql:4.5.1
+          env:
+            - name: DEVPI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka2sql
+                  key: password
+          ports:
+            - name: kafka2sql
+              containerPort: 3141
+              protocol: TCP
+          volumeMounts:
+            - name: kafka2sql-data
+              mountPath: /data
+              readOnly: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: kafka2sql
+      serviceAccount: kafka2sql
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

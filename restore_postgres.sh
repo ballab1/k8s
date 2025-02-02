@@ -5,7 +5,7 @@ PROGRAM_DIR=~/GIT/k8s
 PROGRAM_NAME="$(basename "${BASH_SOURCE[0]}" | sed 's|.sh$||')"
 WORKSPACE='/home/bobb/workspace'
 LOGFILE="${WORKSPACE}/current/${PROGRAM_NAME}.log"
-SQL_FILE='2025-01-25.postgres.sql'
+SQL_FILE='2025-02-01.postgres.sql'
 
 cd "${WORKSPACE}" ||:
 mkdir -p current ||:
