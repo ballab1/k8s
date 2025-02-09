@@ -9,7 +9,9 @@ declare -r MAX_ITER=20
 declare -r GREEN='\x1b[32m'
 declare -r GREY='\x1b[90m'
 declare -r RED='\x1b[31m'
+declare -r BLUE='\x1b[94m'
 declare -r RESET='\x1b[0m'
+declare -r SQL_DIR='/home/bobb/src/postgres/'
 
 
 # -----------------------------------------------------------------------------------
@@ -298,11 +300,19 @@ EOF
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
+#----------------------------------------------------------------------------
+function k8s.get_last_backup() {
+
+    local -r base="${1:?}"
+    local -r extn="${2:?}"
+
+    find "${base}" -maxdepth 1 -mindepth 1 -type f -name "*.${extn}" | sort | tail -1
+}
+
 # -----------------------------------------------------------------------------------
 function k8s.get_latest_file() {
 
-   local filename="${1:?}"
-   echo "/home/bobb/workspace/${filename:-###########}"
+   tar -xzf "$(k8s.get_last_backup "${SQL_DIR}" 'tgz')"
 }
 
 # -----------------------------------------------------------------------------------
@@ -732,17 +742,6 @@ function k8s.reinstall_cluster() {
 }
 
 # -----------------------------------------------------------------------------------
-function k8s.remove_app() {
-
-    [ "$#" -eq 0 ] && return 0
-    local dir
-    for dir in "$@"; do
-        k8s.create_secrets_for_apps "$dir"
-        k8s.load_namespace "$dir" 'delete'
-    done
-}
-
-# -----------------------------------------------------------------------------------
 function k8s.reinstall_prometheus() {
 
     [ -z "$(which microk8s)" ] && return 0
@@ -762,6 +761,17 @@ function k8s.reinstall_prometheus() {
     k8s.load_namespace 'prometheus'
     k8s.run "$KUBECTL" patch Prometheus/k8s -n "$ns" --patch-file=./production/Prometheus.k8s.yml --type='merge'
     k8s.capture_ips_for_gui
+}
+
+# -----------------------------------------------------------------------------------
+function k8s.remove_app() {
+
+    [ "$#" -eq 0 ] && return 0
+    local dir
+    for dir in "$@"; do
+        k8s.create_secrets_for_apps "$dir"
+        k8s.load_namespace "$dir" 'delete'
+    done
 }
 
 # -----------------------------------------------------------------------------------
@@ -846,7 +856,8 @@ function k8s.remove_persistentvolumes() {
     echo
 }
 
-function k8s.restore_hostpath() {
+# -----------------------------------------------------------------------------------
+function k8s.restore_statefull_apps() {
 
   local POSTGRES_NAMESPACE='postgres'
   local POSTGES_PVNAME='pv-hp-postgres'
@@ -854,7 +865,7 @@ function k8s.restore_hostpath() {
   local PGADMIN_PVNAME='pv-hp-pgadmin4'
   local DEVPI_NAMESPACE='devpi'
   local DEVPI_PVNAME='pv-hp-devpi'
-
+  local -a args=( "$@" )
 
   # verify KUBECTL exists
   if [ "${#KUBECTL}" -eq 0 ];then
@@ -862,16 +873,25 @@ function k8s.restore_hostpath() {
     exit
   fi
 
-  local pod_name=''
-  k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
-  k8s.verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
-  echo
+  local pod_name=
+  [ "${#args[*]}" -eq 0 ] && args=('postgres' 'pgadmin4' 'devpi')
 
-  k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' '5050:5050' || exit
-  echo
+  for arg in "${args[@]}"; do
+    pod_name=''
+    if [ "$arg" = 'postgres' ]; then
+      k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
+      k8s.verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
+    fi
 
-  k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
-  echo
+    if [ "$arg" = 'pgadmin4' ]; then
+      k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' '5050:5050' || exit
+    fi
+
+    if [ "$arg" = 'devpi' ]; then
+      k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
+    fi
+    echo
+  done
 }
 
 # -----------------------------------------------------------------------------------
@@ -1080,22 +1100,40 @@ function k8s.verify_dbms() {
     sleep 2
     echo -n '.'
   done
-  echo
+if [ 0 != 0 ]; then
+  echo -n ' '
+  sleep 2
+  count=0
+  while true; do
+    lines="$("$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -c '\l' 2>&1)"
+    [ "$(wc -l <<< "$lines")" -gt 1 ] && break
+    if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
+      echo
+      echo -e " ... ${RED}Unable to determine if Database is running${RESET}"
+      return 1
+    fi
+    "$KUBECTL" logs --namespace "$NAMESPACE" "$POD" > "${POD}.${count}.log"
+    sleep 5
+    echo -n '.'
+  done
+fi
+  echo -e " ${GREEN}..database running${RESET}"
 
-  local sql_file="$(k8s.get_latest_file "$SQL_FILE")"
+  local sql_file="$(k8s.get_latest_file)"
   if [ ! -f "$sql_file" ]; then
     echo -e " ... ${RED}Backup file not found${RESET}"
     return 1
   fi
 
-  echo "load last backup '$sql_file' into DBMS"
-  sleep 2  # let filesystem quiesce to ensure DBMS is available
-  "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${POD}:/tmp/$SQL_FILE"
+  echo -e "load last backup '${BLUE}${sql_file}${RESET}' into DBMS"
+  sleep 10  # let filesystem quiesce to ensure DBMS is available
+  k8s.run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
   sleep 2  # let filesystem quiesce to ensure file is available
   {
-    "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$SQL_FILE"
+    k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h postgres.postgres.svc.cluster.local -U postgres -f "/tmp/$sql_file"
   } 2>&1 | tee restore_postgres.sql.log
-  "$KUBECTL" exec -i -t --namespace  "$NAMESPACE" "$POD" -- rm "/tmp/$SQL_FILE"
+  k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- rm "/tmp/$sql_file"
+  rm "$sql_file"
   return 0
 }
 
@@ -1108,11 +1146,12 @@ function k8s.verify_hostpath() {
   local -r PERMS="${4:-}"
 
 
-  echo "verify NAMESPACE: '$NAMESPACE' exists"
+  echo -en "verify NAMESPACE: '${BLUE}${NAMESPACE}${RESET}' exists"
   if [ "$("$KUBECTL" get namespace -o json | jq -r '[.items[]|select(.metadata.name == "'"$NAMESPACE"'" and .status.phase == "Active")]|length')" -eq 0 ];then
-    echo -e " ${RED}Namespace: ${NAMESPACE} does not exist${RESET}"
+    echo -e " ${RED}...Namespace does not exist${RESET}"
     return 1
   fi
+  echo -e " ${GREEN}...ok${RESET}"
 
   echo -n "verify host defined"
   local -r host="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].status.hostIP}')"
@@ -1122,7 +1161,7 @@ function k8s.verify_hostpath() {
   fi
   echo -e " ... ${GREEN}found ${host}${RESET}"
 
-  echo -n "verify PV directory for ${PV_NAME} defined"
+  echo -ne "verify PV directory for '${BLUE}${PV_NAME}${RESET}' defined"
   local -r dir="$("$KUBECTL" get pv "$PV_NAME" -o=jsonpath='{.spec.hostPath.path}')"
   if [ "${#dir}" -eq 0 ];then
     echo -e " ${RED}... Dir: not defined${RESET}"
@@ -1138,7 +1177,7 @@ function k8s.verify_hostpath() {
   fi
   echo -e " ... ${GREEN}found ${pod}${RESET}"
 
-  echo "make sure PV:${PV_NAME} has local directory on '$host':"
+  echo -e "make sure PV:${BLUE}${PV_NAME}${RESET} has local directory on '${BLUE}${host}${RESET}':"
   echo -e " ... ${GREY}'sudo rm -rf '$dir';mkdir -p '$dir'${RESET}"
   #shellcheck disable=SC2029
   ssh "$host" "sudo rm -rf '$dir';mkdir -p '$dir' ||:"
@@ -1147,7 +1186,7 @@ function k8s.verify_hostpath() {
     ssh "$host" "sudo chown -R '$PERMS' '$dir'"
   fi
 
-  echo -n "wait for pod '$pod' to start "
+  echo -en "wait for pod '${BLUE}${pod}${RESET}' to start "
   local phase
   local -i count=0
   while true; do
@@ -1161,7 +1200,7 @@ function k8s.verify_hostpath() {
     sleep 2
     echo -n '.'
   done
-  echo
+  echo -e " .${GREEN}${pod} started${RESET}"
 
   [ "${#POD_NAME}" -gt 0 ] && eval "${POD_NAME}='$pod'"
   return 0
