@@ -56,6 +56,7 @@ function k8s.__init() {
     DEBUG=0
     LASTTIME="$START"
     sudo usermod -a -G microk8s "$USER"
+    CURRENT='/home/bobb/workspace/current'
 
 
     [ -z "${KUBECTL:-}" ] && KUBECTL="microk8s.kubectl"
@@ -101,12 +102,14 @@ function k8s.add_nodes_to_cluster() {
 function k8s.capture_config() {
 
     echo 'capturing config content'
-    mkdir -p current ||:
+    mkdir -p "$CURRENT" ||:
 
-    printf '\n\e[90m%s api-versions\e[0m\n' "${KUBECTL}"
-    ("$KUBECTL" api-versions ||:) &> 'current/api-versions.txt'
-    printf '\n\e[90m%s api-resources -o wide\e[0m\n' "${KUBECTL}"
-    ("$KUBECTL" api-resources -o wide ||:) &> 'current/api-resources.txt'
+    {
+      printf '\n\e[90m%s api-versions\e[0m\n' "${KUBECTL}"
+      ("$KUBECTL" api-versions ||:)
+      printf '\n\e[90m%s api-resources -o wide\e[0m\n' "${KUBECTL}"
+      ("$KUBECTL" api-resources -o wide ||:)
+    }  &> "${CURRENT}/api-resources.txt"
 
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
@@ -114,10 +117,10 @@ function k8s.capture_config() {
 # -----------------------------------------------------------------------------------
 function k8s.capture_ips_for_gui() {
 
-    local ip_file='current/services_ips.json'
+    local ip_file="${CURRENT}/services_ips.json"
 
     echo 'capturing IPs for GUI'
-    mkdir -p current ||:
+    mkdir -p "$CURRENT" ||:
     "$KUBECTL" get services -A -o json |  jq '[.items[]|select(.spec.clusterIP != "None")|{"title":.metadata.name, "host": .spec.clusterIP, "port":.spec.ports[0].port}]' > "$ip_file"
     jq -r '[.[]|"  \(.title): \(.host):\(.port)"]|sort[]' "$ip_file"
     if [ "$K8S_CLUSTERNAME" = 'prodk8s' ]; then
@@ -131,11 +134,11 @@ function k8s.capture_ips_for_gui() {
 function k8s.capture_status() {
 
     echo 'capturing status'
-    mkdir -p current ||:
-    k8s.run "$KUBECTL" cluster-info | tee current/cluster-info.txt
-    k8s.run "$KUBECTL" get nodes | tee current/nodes.txt
-    k8s.run "$KUBECTL" get all -A | tee current/all.txt
-    (k8s.dump_apis)
+    mkdir -p "$CURRENT" ||:
+    k8s.run "$KUBECTL" cluster-info | tee "${CURRENT}/cluster-info.txt"
+    k8s.run "$KUBECTL" get nodes | tee "${CURRENT}/nodes.txt"
+    k8s.run "$KUBECTL" get all -A | tee "${CURRENT}/all.txt"
+    (k8s.dump_apis ||:)
 
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
@@ -173,6 +176,10 @@ function k8s.customize_content() {
     if [ -d "production/patches.${K8S_VERSION}" ];then
         local ns object status
         while read -r patchFile;do
+            sleep 20  # wait for patches to complete
+            sync; sync
+            sleep 5
+
             # extract namespace from patchFile name
             ns="$(basename "${patchFile}")"
             ns="${ns%%.*}"
@@ -212,7 +219,7 @@ function k8s.dump_apis() {
     local ext mode object
     local -a types=('by_class' 'by_mode')
     local -a modes=('wide' 'json' 'yaml')
-    local -r API_DIR='current/apis'
+    local -r API_DIR="${CURRENT}/apis"
 
     # setup directories for files
     rm -rf "${API_DIR}"
@@ -250,6 +257,11 @@ function k8s.enable_microk8s_modules() {
     echo 'enable microk8s modules'
 
     for module in "${K8S_MODULES[@]}";do
+        if [ "$module" = 'observability' ]; then
+          sleep 25  # wait for initialization to complete
+          sync; sync
+          sleep 10  # wait for initialization to complete
+        fi
         k8s.run sudo microk8s enable "$module" ||:
         sleep 5  # wait for initialization to complete
         sync; sync
@@ -266,8 +278,8 @@ function k8s.enable_microk8s_modules() {
 function k8s.generate_token() {
 
     echo 'generating tokens.inf'
-    mkdir -p current ||:
-    local tokenFile='current/tokens.inf'
+    mkdir -p "$CURRENT" ||:
+    local tokenFile="${CURRENT}/tokens.inf"
     :> "$tokenFile"
     for token in 'default-token' 'admin-user' ; do
         local ref="$("$KUBECTL" -n kube-system get secret | grep "$token" ||:)"
@@ -312,7 +324,7 @@ function k8s.get_last_backup() {
 # -----------------------------------------------------------------------------------
 function k8s.get_latest_file() {
 
-   tar -xzf "$(k8s.get_last_backup "${SQL_DIR}" 'tgz')"
+   tar -xzvf "$(k8s.get_last_backup "${SQL_DIR}" 'tgz')"
 }
 
 # -----------------------------------------------------------------------------------
@@ -407,12 +419,12 @@ function k8s.load_namespace() {
 function k8s.log_elapsed() {
 
     [ "${DEBUG:-0}" -eq 0 ] && return 0
-    mkdir -p current ||:
+    mkdir -p "$CURRENT" ||:
 
     local -r text="${1:-}"
     local now=$(timer.getTimestamp)
 
-    printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((now - LASTTIME))")" | tee -a current/elapsed.times.txt
+    printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((now - LASTTIME))")" | tee -a "${CURRENT}/elapsed.times.txt"
 
     LASTTIME="$now"
     stty sane
@@ -437,8 +449,8 @@ function k8s.onexit() {
     local -i delta="$(timer.getTimestamp)"
     delta="$(( delta - START ))"
 
-    mkdir -p current ||:
-    [ "$delta" -lt 3 ] || printf '\n\n%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a current/elapsed.times.txt
+    mkdir -p "$CURRENT" ||:
+    [ "$delta" -lt 3 ] || printf '\n\n%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a "${CURRENT}/elapsed.times.txt"
 }
 
 # -----------------------------------------------------------------------------------
@@ -519,8 +531,8 @@ function reinit.main() {
     fi
 
     if [[ "$(pwd)" =~ '/home/bobb' ]]; then
-        mkdir -p current ||:
-        cp "$localConfig" "current/config.${K8S_CLUSTERNAME}.home"
+        mkdir -p "$CURRENT" ||:
+        cp "$localConfig" "${CURRENT}/config.${K8S_CLUSTERNAME}.home"
     fi
 
     echo 'add user to microk8s group'
@@ -602,6 +614,7 @@ TEMP=''
 BASHLIB_DIR='/home/bobb/.bin/utilities/bashlib'
 REGISTRY="$REGISTRY"
 K8S_CLUSTERNAME="$K8S_CLUSTERNAME"
+CURRENT="$CURRENT"
 
 # Use the Unofficial Bash Strict Mode
 set -o errexit
@@ -690,8 +703,8 @@ function k8s.reinit_nodes() {
     k8s.remove_persistentvolumes ||:
     k8s.remove_modules    ||:
 
-    [ -d current ] || mkdir current ||:
-    SCRIPT=current/reinit.sh.node
+    [ -d "$CURRENT" ] || mkdir -p "$CURRENT" ||:
+    SCRIPT="${CURRENT}/reinit.sh.node"
     k8s.on_remote > "$SCRIPT"
 
     echo 'reinit each node'
@@ -722,9 +735,9 @@ function k8s.reinit_nodes() {
 # -----------------------------------------------------------------------------------
 function k8s.reinstall_cluster() {
 
-    [ -d current ] && rm -rf current
-    mkdir current ||:
-    :> current/elapsed.times.txt
+    [ -d "$CURRENT" ] && rm -rf "$CURRENT"
+    mkdir "$CURRENT" ||:
+    :> "${CURRENT}/elapsed.times.txt"
 
     k8s.separator k8s.reinit_nodes
     [ -z "$(which microk8s)" ] && exit 1
@@ -804,12 +817,17 @@ function k8s.remove_modules() {
     # get list of namespaces:
     local -a modules
     mapfile -t modules < <(microk8s status | awk 'BEGIN {show=0} {if ($1 == "disabled:") { show=0 } else if (show == 1) { print $1 } else if ($1 == "enabled:" ) {show=1}}')
-    local module
+    local module destroy_storage
     for module in "${modules[@]}"; do
         grep -qs " ${module} " <<< "$allowed" && continue
         k8s.run sudo microk8s disable "$module"
+        [ "$module" = 'hostpath-storage' ] && destroy_storage=1
         sleep 3
     done
+    if [ "${destroy_storage:-0}" = 1 ]; then
+        (microk8s disable hostpath-storage:destroy-storage ||:)
+        sleep 3
+    fi
     echo
 }
 
@@ -842,17 +860,16 @@ function k8s.remove_persistentvolumes() {
     echo 'removing persistentVolumes to ease the pressure created by reinstall'
 
     # get list of PV's:
-    local -a pvs
-    mapfile pvs < <("$KUBECTL" get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
     local pv
-    for pv in "${pvs[@]}"; do
+    while read -r pv; do
         k8s.run "$KUBECTL" delete pv "$pv"
-    done
-#    mapfile pvs < <("$KUBECTL" get pvc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+    done < <("$KUBECTL" get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+
 #    local pvc
-#    for pvc in "${pvs[@]}"; do
+#    while read -r pvc; do
 #        k8s.run "$KUBECTL" delete pvc "$pv"
-#    done
+#    done < <("$KUBECTL" get pvc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+
     echo
 }
 
@@ -878,18 +895,24 @@ function k8s.restore_statefull_apps() {
 
   for arg in "${args[@]}"; do
     pod_name=''
-    if [ "$arg" = 'postgres' ]; then
-      k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
-      k8s.verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
-    fi
+    case "$arg" in
+      postgres)
+        k8s.verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
+        k8s.verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
+        ;;
 
-    if [ "$arg" = 'pgadmin4' ]; then
-      k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' '5050:5050' || exit
-    fi
+      pgadmin4)
+        k8s.verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' || exit
+        ;;
 
-    if [ "$arg" = 'devpi' ]; then
-      k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
-    fi
+      devpi)
+        k8s.verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
+        ;;
+
+      *)
+        echo 'arg must be empty or one of ( postgres | pgadmin4 | devpi )'
+        exit ;;
+    esac
     echo
   done
 }
@@ -910,14 +933,14 @@ function k8s.run_in_parallel() {
     local script="${1:?}"
     local log_extn="${2:?}"
     shift 2
-    mkdir -p current ||:
+    mkdir -p "$CURRENT" ||:
 
     echo "start $# copies of $script"
     for h in "$@"; do
       if [ "${log_extn}" = '.' ]; then
         ( k8s.run "$script" "$h" ) &
       else
-        ( k8s.run "$script" "$h" ) &> "current/${h}.${log_extn}" &
+        ( k8s.run "$script" "$h" ) &> "${CURRENT}/${h}.${log_extn}" &
       fi
     done
 
@@ -931,12 +954,12 @@ function k8s.run_in_parallel() {
     if [ "${log_extn}" != '.' ]; then
         echo '  output log of each job'
         for h in "$@"; do
-            [ -e "current/${h}.${log_extn}" ] || continue
+            [ -e "${CURRENT}/${h}.${log_extn}" ] || continue
             echo
             while read -r line; do
               echo -e "  \e[93m$h:\e[0m  $line"
-            done< "current/${h}.${log_extn}"
-            sed -i -E -e "${k8s_NO_ASCII}" "current/${h}.${log_extn}"
+            done< "${CURRENT}/${h}.${log_extn}"
+            sed -i -E -e "${k8s_NO_ASCII}" "${CURRENT}/${h}.${log_extn}"
         done
     fi
     k8s.log_elapsed "${FUNCNAME[0]}"
@@ -970,14 +993,15 @@ function k8s.update_jenkins() {
     # shellcheck disable=SC1090,SC2154
     JENKINS_CREDS="$(source "$__SECRETS_FILE" ; echo "$jenkins")"
 
-    local -r tokenFile='current/tokens.inf'
+    local -r tokenFile="${CURRENT}/tokens.inf"
     if [ -f "$tokenFile" ]; then
         local new_token="$(grep 'token:' "$tokenFile" | awk '{print $2}')"
         [ "${new_token:-}" ] && k8s.update_jenkins_config "$JENKINS_TOKEN_KEY" "$new_token"
     fi
 
-    local -r config_file="current/config.${K8S_CLUSTERNAME}.home"
+    local -r config_file="${CURRENT}/config.${K8S_CLUSTERNAME}.home"
     if [ -f "$config_file" ]; then
+        sudo chown "$(stat -c '%u:%g' "$CURRENT")" "$config_file"
         local new_token="$(grep 'token:' "$config_file" | awk '{print $2}')"
         [ "${new_token:-}" ] && k8s.update_jenkins_config "$JENKINS_ADMIN_KEY" "$new_token"
     fi
@@ -996,7 +1020,8 @@ function k8s.update_kube_config() {
     local -r gid="$(cut -d ':' -f 4 <<< "$inf")"
     local -r homeDir="$(cut -d ':' -f 6 <<< "$inf")"
     local -r localConfig="${homeDir}/.kube/config"
-    local -r config_file="current/config.${K8S_CLUSTERNAME}.home"
+    local -r config_file="${CURRENT}/config.${K8S_CLUSTERNAME}.home"
+    sudo chown "${uid}:${gid}" "$config_file"
 
     sudo mkdir -p "${homeDir}/.kube" ||:
     sudo chown -f -R "${uid}:${gid}" "${homeDir}/.kube"
@@ -1023,6 +1048,8 @@ function k8s.update_kube_config() {
 
     k8s.run_in_parallel 'k8s.update_kube_config.update_host' '.' "${K8S_NODES[@]}"
 
+#    busy_timeoput="$(sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout;')"
+#    sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout = 20000;'
     k8s.log_elapsed "${FUNCNAME[0]}"
 }
 
@@ -1100,6 +1127,7 @@ function k8s.verify_dbms() {
     sleep 2
     echo -n '.'
   done
+#shellcheck disable=SC2050
 if [ 0 != 0 ]; then
   echo -n ' '
   sleep 2
@@ -1130,7 +1158,8 @@ fi
   k8s.run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
   sleep 2  # let filesystem quiesce to ensure file is available
   {
-    k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h postgres.postgres.svc.cluster.local -U postgres -f "/tmp/$sql_file"
+#    k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h postgres.postgres.svc.cluster.local -U postgres -f "/tmp/$sql_file"
+    k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$sql_file"
   } 2>&1 | tee restore_postgres.sql.log
   k8s.run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- rm "/tmp/$sql_file"
   rm "$sql_file"
@@ -1143,7 +1172,6 @@ function k8s.verify_hostpath() {
   local -r NAMESPACE="${1:?}"
   local -r PV_NAME="${2:?}"
   local -r POD_NAME="${3:?}"
-  local -r PERMS="${4:-}"
 
 
   echo -en "verify NAMESPACE: '${BLUE}${NAMESPACE}${RESET}' exists"
@@ -1180,11 +1208,7 @@ function k8s.verify_hostpath() {
   echo -e "make sure PV:${BLUE}${PV_NAME}${RESET} has local directory on '${BLUE}${host}${RESET}':"
   echo -e " ... ${GREY}'sudo rm -rf '$dir';mkdir -p '$dir'${RESET}"
   #shellcheck disable=SC2029
-  ssh "$host" "sudo rm -rf '$dir';mkdir -p '$dir' ||:"
-  if [ "${#PERMS}" -gt 0 ]; then
-    #shellcheck disable=SC2029
-    ssh "$host" "sudo chown -R '$PERMS' '$dir'"
-  fi
+  ssh "$host" "mkdir -p '$dir'; sudo chmod 777 '$dir' ||:"
 
   echo -en "wait for pod '${BLUE}${pod}${RESET}' to start "
   local phase
@@ -1200,7 +1224,7 @@ function k8s.verify_hostpath() {
     sleep 2
     echo -n '.'
   done
-  echo -e " .${GREEN}${pod} started${RESET}"
+  echo -e " ${GREEN}... ${pod} started${RESET}"
 
   [ "${#POD_NAME}" -gt 0 ] && eval "${POD_NAME}='$pod'"
   return 0

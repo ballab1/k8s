@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prom-stack-grafana
+  namespace: observability
+data:
+  grafana.ini: |
+    instance_name = Ballantyne
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [analytics]
+    check_for_updates = true
+    [log]
+    mode = console
+    [grafana_net]
+    url = https://grafana.net
+    [database]
+    type = postgres
+    host = postgres.postgres.svc.cluster.local:5432
+    name = grafana
+    user = grafana
+    password = grafana
+    ssl_mode: require
+    [server]
+    domain = ''
