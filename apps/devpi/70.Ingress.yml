@@ -4,13 +4,23 @@ metadata:
   name: devpi-ingress
   namespace: devpi
   annotations:
+    prometheus.io/port: "9113"
     spec.ingressClassName: public
+#    kubernetes.io/ingress.class: public
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
+  defaultBackend:
+    service:
+      name: devpi
+      port:
+        number: 3141
   rules:
-  - host: "devpi.k8s.home"
+  - host: www.k8s.home
     http:
       paths:
-        - path: /
+        - path: /devpi
           pathType: Prefix
           backend:
             service:

@@ -4,6 +4,7 @@ metadata:
   name: pgadmin4-ingress
   namespace: pgadmin4
   annotations:
+    prometheus.io/port: "9113"
     spec.ingressClassName: public
 #    kubernetes.io/ingress.class: public
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -14,12 +15,12 @@ spec:
     service:
       name: pgadmin4
       port:
-        number: 443
+        number: 80
   rules:
-  - host: "pgadmin4.k8s.home"
+  - host: www.k8s.home
     http:
       paths:
-        - path: /
+        - path: /pgadmin4
           pathType: Prefix
           backend:
             service:

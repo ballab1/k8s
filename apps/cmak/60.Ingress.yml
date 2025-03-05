@@ -4,6 +4,7 @@ metadata:
   name: cmak-ingress
   namespace: cmak
   annotations:
+    prometheus.io/port: "9113"
     spec.ingressClassName: public
 #    kubernetes.io/ingress.class: public
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -16,10 +17,10 @@ spec:
       port:
         number: 80
   rules:
-  - host: "cmak.k8s.home"
+  - host: www.k8s.home
     http:
       paths:
-        - path: /
+        - path: /cmak
           pathType: Prefix
           backend:
             service:

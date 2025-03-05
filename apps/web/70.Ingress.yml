@@ -9,18 +9,18 @@ metadata:
 #    kubernetes.io/ingress.class: public
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true" 
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
   defaultBackend:
     service:
-      name: recipies
+      name: web
       port:
-        number: 443
+        number: 80
   rules:
-  - host: "web.k8s.home"
+  - host: www.k8s.home
     http:
       paths:
-        - path: /
+        - path: /web
           pathType: Prefix
           backend:
             service:
