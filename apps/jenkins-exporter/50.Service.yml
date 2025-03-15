@@ -6,8 +6,11 @@ metadata:
   labels:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
-    prometheus.monitoring/service: jenkins-exporter 
+    prometheus.monitoring/service: jenkins-exporter
 spec:
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
   ports:
     - name: metrics
       protocol: TCP
@@ -16,8 +19,5 @@ spec:
   selector:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
-    prometheus.monitoring/service: jenkins-exporter 
   sessionAffinity: None
-  type: LoadBalancer
-status:
-  loadBalancer: {}
+  type: ClusterIP

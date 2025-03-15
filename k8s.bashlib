@@ -398,9 +398,10 @@ function k8s.add_new_content() {
             # extract obect from patchFile host
             object="${host#*:}"
 
-            if [ "$("$KUBECTL" get -n "$ns" "$object" -o json | jq -r '.spec.rules[].host')" = 'www.k8s.home' ]; then
+            if [ "$("$KUBECTL" get ingress -n "$ns" "$object" -o json | jq -r '.spec.rules[].host')" = 'prod.k8s.home' ]; then
                 # patch object
-                k8s.__run "$KUBECTL" patch "$object" -n "$ns" --patch='{"spec":{"rules":[{"host":"www.home.dev"}]}}' --type='merge'
+                k8s.__run "$KUBECTL" patch ingress -n "$ns" "$object" --patch='[{"op": "replace", "path": "/spec/rules/0/host", "value": "dev.k8s.home"}]'
+                sleep 5
             fi
         done < <("$KUBECTL"  get ingress -A -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}')
     fi

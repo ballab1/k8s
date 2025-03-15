@@ -25,4 +25,6 @@ data:
     password = grafana
     ssl_mode: require
     [server]
-    domain = ''
+    domain = 'prod.k8s.home'
+    root_url = 'http://%(domain)s/grafana'
+    serve_from_sub_path = true

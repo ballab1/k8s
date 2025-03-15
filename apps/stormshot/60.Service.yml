@@ -8,8 +8,6 @@ metadata:
     app.kubernetes.io/name: stormshot
     prometheus.monitoring/service: nginx-exporter
 spec:
-  externalTrafficPolicy: Cluster
-  internalTrafficPolicy: Cluster
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
@@ -25,6 +23,5 @@ spec:
   selector:
     app.kubernetes.io/component: stormshot
     app.kubernetes.io/name: stormshot
-    prometheus.monitoring/service: nginx-exporter
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP

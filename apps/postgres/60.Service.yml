@@ -7,8 +7,6 @@ metadata:
     app.kubernetes.io/component: postgres
     app.kubernetes.io/name: postgres
 spec:
-  externalTrafficPolicy: Cluster
-  internalTrafficPolicy: Cluster
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
@@ -21,4 +19,4 @@ spec:
     app.kubernetes.io/component: postgres
     app.kubernetes.io/name: postgres
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP

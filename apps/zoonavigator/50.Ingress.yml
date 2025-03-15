@@ -3,19 +3,13 @@ kind: Ingress
 metadata:
   name: zoonavigator-ingress
   namespace: zoonavigator
+  labels:
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/name: nginx-ingress-microk8s
   annotations:
     prometheus.io/port: "9113"
     spec.ingressClassName: public
-#    kubernetes.io/ingress.class: public
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
-  defaultBackend:
-    service:
-      name: zoonavigator
-      port:
-        number: 80
   rules:
   - host: .k8s.home
     http:

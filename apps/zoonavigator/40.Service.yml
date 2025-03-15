@@ -16,4 +16,4 @@ spec:
     app.kubernetes.io/component: zoonavigator
     app.kubernetes.io/name: zoonavigator
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP

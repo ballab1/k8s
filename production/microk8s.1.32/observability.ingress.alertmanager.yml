@@ -3,19 +3,22 @@ kind: Ingress
 metadata:
   name: alertmanager-main-ingress
   namespace: observability
+  labels:
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/name: nginx-ingress-microk8s
   annotations:
-    spec.ingressClassName: nginx
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    prometheus.io/port: "9113"
+    spec.ingressClassName: public
 spec:
+  ingressClassName: public
   rules:
-  - host: alertmanager.k8s.home
+  - host: prod.k8s.home
     http:
       paths:
-        - path: /
+        - path: /alertmanager
           pathType: Prefix
           backend:
             service:
               name: kube-prom-stack-kube-prome-alertmanager
               port:
-                number: 443 
+                number: 9093

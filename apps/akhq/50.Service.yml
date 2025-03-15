@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: akhq
     app.kubernetes.io/name: akhq
 spec:
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
   ports:
     - name: http
       protocol: TCP
@@ -16,4 +19,4 @@ spec:
     app.kubernetes.io/component: akhq
     app.kubernetes.io/name: akhq
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP

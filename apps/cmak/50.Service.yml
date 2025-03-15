@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: cmak
     app.kubernetes.io/name: cmak
 spec:
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
   ports:
     - name: http
       protocol: TCP
@@ -16,4 +19,4 @@ spec:
     app.kubernetes.io/component: cmak
     app.kubernetes.io/name: cmak
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP

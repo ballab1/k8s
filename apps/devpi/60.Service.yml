@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: devpi
     app.kubernetes.io/name: devpi
 spec:
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
   ports:
     - name: devpi
       protocol: TCP
@@ -16,4 +19,4 @@ spec:
     app.kubernetes.io/component: devpi
     app.kubernetes.io/name: devpi
   sessionAffinity: None
-  type: LoadBalancer
+  type: ClusterIP
