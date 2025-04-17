@@ -7,14 +7,15 @@ metadata:
     app.kubernetes.io/component: ingress
     app.kubernetes.io/name: nginx-ingress-microk8s
   annotations:
-    prometheus.io/port: "9113"
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    prometheus.io/port: '9113'
     spec.ingressClassName: public
 spec:
   rules:
-  - host: prod.k8s.home
+  - host: efak.prod.k8s.home
     http:
       paths:
-        - path: /efak
+        - path: /
           pathType: Prefix
           backend:
             service:

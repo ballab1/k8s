@@ -12,10 +12,10 @@ metadata:
 spec:
   ingressClassName: public
   rules:
-  - host: "prod.k8s.home"
+  - host: grafana.prod.k8s.home
     http:
       paths:
-        - path: /grafana
+        - path: /
           pathType: Prefix
           backend:
             service:

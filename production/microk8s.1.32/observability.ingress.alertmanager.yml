@@ -12,10 +12,10 @@ metadata:
 spec:
   ingressClassName: public
   rules:
-  - host: prod.k8s.home
+  - host: alertmanager.prod.k8s.home
     http:
       paths:
-        - path: /alertmanager
+        - path: /
           pathType: Prefix
           backend:
             service:

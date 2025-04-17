@@ -12,10 +12,10 @@ metadata:
 spec:
   ingressClassName: public
   rules:
-  - host: prod.k8s.home
+  - host: prometheus.prod.k8s.home
     http:
       paths:
-        - path: /prometheus
+        - path: /
           pathType: Prefix
           backend:
             service:
