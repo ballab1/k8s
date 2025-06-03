@@ -6,7 +6,6 @@ metadata:
   labels:
     app.kubernetes.io/component: web
     app.kubernetes.io/name: web
-    prometheus.monitoring/service: nginx-exporter
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
@@ -15,36 +14,28 @@ spec:
     matchLabels:
       app.kubernetes.io/component: web
       app.kubernetes.io/name: web
-      prometheus.monitoring/service: nginx-exporter
   template:
     metadata:
       labels:
         app.kubernetes.io/component: web
         app.kubernetes.io/name: web
-        prometheus.monitoring/service: nginx-exporter
     spec:
       volumes:
-        - name: var-storage
-          emptyDir: {}
         - name: run-storage
           emptyDir: {}
-        - name: web-storage
-          persistentVolumeClaim:
-             claimName: pvc-web
-             readOnly: true
-        - name: web-metrics
+        - name: config
           configMap:
-            name: web-metrics
-            defaultMode: 420
-        - name: nginx-exporter-storage
-          emptyDir: {}
+            name: web-config
+            items:
+              - key: web.json
+                path: web.json
       containers:
         - name: web
-          image:  s2.ubuntu.home:5000/docker.io/nginx:1.26.3
+          image:  s2.ubuntu.home:5000/alpine/web:8dfaa1e002
           imagePullPolicy: IfNotPresent
           ports:
             - name: web
-              containerPort: 80
+              containerPort: 3000
               protocol: TCP
           resources:
             limits:
@@ -56,41 +47,14 @@ spec:
           volumeMounts:
             - name: run-storage
               mountPath: /var/run
-            - name: var-storage
-              mountPath: /var/cache/nginx
-            - name: web-storage
-              mountPath: /usr/share/nginx/html
-              subPath: web
-            - mountPath: /etc/nginx/conf.d/metrics.conf
-              name: web-metrics
-              subPath: metrics.conf
+            - name: config
+              mountPath: /app/web.json
+              subPath: web.json
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-        - name: nginx-exporter
-          command:
-            - nginx-prometheus-exporter
-            - -nginx.scrape-uri=http://127.0.0.1:8080/metrics
-          image: s2.ubuntu.home:5000/docker.io/nginx/nginx-prometheus-exporter:1.4.0
-          ports:
-            - name: metrics
-              containerPort: 9113
-              protocol: TCP
-          resources:
-            limits:
-              cpu: 200m
-              memory: 200Mi
-            requests:
-              cpu: 100m
-              memory: 100Mi
-          volumeMounts:
-            - name: nginx-exporter-storage
-              mountPath: /etc/nginx-exporter
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
-          imagePullPolicy: IfNotPresent
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst

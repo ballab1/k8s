@@ -3,7 +3,7 @@ DEV_VERSION: 'K8S_132'
 PROD_MASTER: 's6.ubuntu.home'
 PROD_VERSION: 'K8S_132'
 REGISTRY: 's2.ubuntu.home:5000'
-GRAFANA_VERSION: "11.6.0"
+GRAFANA_VERSION: "11.6.1"
 KUBERNETES_DASHBOARD_VERSION: "2.7.0"
 
 JENKINS_URL: 'https://s3.ubuntu.home/jenkins'
@@ -236,9 +236,9 @@ PROD:
 
 DEV:
   K8S_NODES:
-    - 's1.ubuntu.home'
+#    - 's1.ubuntu.home'
     - 's5.ubuntu.home'
-    - 's7.ubuntu.home'
+#    - 's7.ubuntu.home'
   JENKINS_ADMIN_KEY: 'aa74c6b2-798b-4047-a7aa-38a3f7de8078'
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
   K8S_CLUSTERNAME: 'devk8s'

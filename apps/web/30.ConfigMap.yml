@@ -1,24 +1,25 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: web-metrics
+  name: web-config
   namespace: web
   labels:
-    k8s-app: web 
+    k8s-app: web
+    k8slens-edit-resource-version: v1
 data:
   metrics.conf: |
     server {
         listen       8080;
         server_name  metrics;
-    
+
         location /metrics {
             stub_status;
-    
+
             access_log off;
             allow 127.0.0.1;
             deny all;
         }
-    
+
         # redirect server error pages to the static page /50x.html
         #
         error_page   500 502 503 504  /50x.html;
@@ -26,3 +27,242 @@ data:
             root   /usr/share/nginx/html;
         }
     }
+  web.json: |-
+    [
+      {
+        "text": "S3: old",
+        "html": "https://s3.ubuntu.home/index.html",
+        "id": "old_web",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "S3: Jenkins",
+        "html": "https://s3.ubuntu.home/jenkins",
+        "id": "jenkins",
+        "image": "images/jenkins.png"
+      },
+      {
+        "text": "S3: WebDAV",
+        "html": "https://s3.ubuntu.home/webdav",
+        "id": "webdav",
+        "image": "images/blank.png"
+      },
+      {
+        "break": true
+      },
+      {
+        "text": "K8S: devPi",
+        "html": "http://devpi.prod.k8s.home",
+        "id": "devpi",
+        "image": "images/devPi.jfif"
+      },
+      {
+        "text": "K8S: pgAdmin4",
+        "html": "https://pgadmin4.prod.k8s.home",
+        "id": "pgadmin4",
+        "image": "images/pgadmin4.jfif"
+      },
+      {
+        "text": "K8S: Recipes",
+        "html": "https://recipes.prod.k8s.home",
+        "id": "recipes",
+        "image": "images/recipes.jfif"
+      },
+      {
+        "text": "K8S: Versions",
+        "html": "https://versions.prod.k8s.home",
+        "id": "versions",
+        "image": "images/versions.jfif"
+      },
+      {
+        "text": "K8S: Stormshot",
+        "html": "https://stormshot.prod.k8s.home",
+        "id": "stormshot",
+        "image": "images/stormshot.jfif"
+      },
+      {
+        "text": "K8S: Redpanda",
+        "html": "https://redpanda.prod.k8s.home",
+        "id": "redpanda",
+        "image": "images/redpanda.jfif"
+      },
+      {
+        "text": "K8S: cmak",
+        "html": "https://cmak.prod.k8s.home",
+        "id": "cmak",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "K8S: kowl",
+        "html": "https://kowl.prod.k8s.home",
+        "id": "kowl",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "K8S: ZooNavigator",
+        "html": "https://zoonavigator.prod.k8s.home",
+        "id": "zoonavigator",
+        "image": "images/blank.png"
+      },
+      {
+        "break": true
+      },
+      {
+        "text": "K8S: ArgoCD",
+        "html": "https://argocd-server.prod.k8s.home",
+        "id": "argocd",
+        "image": "images/versions.jfif"
+      },
+      {
+        "text": "K8S: Grafana",
+        "html": "https://grafana.prod.k8s.home",
+        "id": "grafana",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "K8S: Kubernetes Dashboard",
+        "html": "#",
+        "id": "kubernetes-dashboard",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "K8S: Prometheus Alertmanager",
+        "html": "https://alertmanager.prod.k8s.home",
+        "id": "alertmanager",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "K8S: Prometheus",
+        "html": "https://prometheus.prod.k8s.home",
+        "id": "prometheus",
+        "image": "images/blank.png"
+      },
+      {
+        "break": true
+      },
+      {
+        "text": "MinIO: #3",
+        "html": "http://10.3.1.10:9001/tools/metrics",
+        "id": "minio",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "ext: SMEE",
+        "html": "https://smee.io/F9gFiEeTza0Po4Rd",
+        "id": "smee",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "ext: Slack",
+        "html": "https://soho-ball.slack.com",
+        "id": "slack",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "nas: Synology NAS",
+        "html": "https://nas.home:5001",
+        "id": "nas",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "nas: Ballantyne Photo Album",
+        "html": "https://nas.home/photo",
+        "id": "nas_photo",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Epson: printer",
+        "html": "https://printer.home",
+        "id": "printer",
+        "mode": "GET",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "router: Netgear Orbi",
+        "html": "https://10.3.1.1",
+        "id": "router",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "router: Netgear Orbi Satellite",
+        "html": "https://rbe970.home",
+        "id": "satellite",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "S2: Docker Registry",
+        "html": "http://s2.ubuntu.home:5000/v2/_catalog",
+        "id": "registry",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "TPLink: switch",
+        "html": "http://switch.home",
+        "id": "switch",
+        "mode": "GET",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "wdmycloud: WD My Cloud",
+        "html": "https://wdmycloud.home/UI",
+        "id": "wdmycloud",
+        "image": "images/blank.png"
+      },
+      {
+        "break": true
+      },
+      {
+        "text": "Wireshark: pi",
+        "html": "https://pi.ubuntu.home:3001",
+        "id": "wireshark_pi",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s1",
+        "html": "https://s1.ubuntu.home:3001",
+        "id": "wireshark_s1",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s2",
+        "html": "https://s2.ubuntu.home:3001",
+        "id": "wireshark_s2",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s3",
+        "html": "https://s3.ubuntu.home:3001",
+        "id": "wireshark_s3",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s4",
+        "html": "https://s4.ubuntu.home:3001",
+        "id": "wireshark_s4",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s5",
+        "html": "https://s5.ubuntu.home:3001",
+        "id": "wireshark_s5",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s6",
+        "html": "https://s6.ubuntu.home:3001",
+        "id": "wireshark_s6",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s7",
+        "html": "https://s7.ubuntu.home:3001",
+        "id": "wireshark_s7",
+        "image": "images/blank.png"
+      },
+      {
+        "text": "Wireshark: s8",
+        "html": "https://s8.ubuntu.home:3001",
+        "id": "wireshark_s8",
+        "image": "images/blank.png"
+      }
+    ]
