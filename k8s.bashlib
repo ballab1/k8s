@@ -323,8 +323,11 @@ function k8s::__parse_config() {
 # -----------------------------------------------------------------------------------
 function k8s::__run() {
   {
+      local p
       echo
-      printf '%s%s%s ' "$GREY" "$@" "$RESET"
+      for p in "$@"; do
+          echo -en "${GREY}${p}${RESET} "
+      done
       echo
   } >&2
   "$@"
