@@ -1,0 +1,409 @@
+#!/bin/echo 'This script cannot be executabled directly. Please source from another script'
+# get_cert_info.bashlib
+
+#------------------------------------------------------------------------------------
+function get_cert_info::collect_info() {
+
+    local -r mode="${1:?}"
+    local -r k8s_dir='/var/snap/microk8s/current'
+
+    mkdir -p "${WORKDIR}/$mode"
+    cd "${WORKDIR}/$mode" ||:
+
+    kubectl cluster-info dump > 'cluster-info.txt'
+    get_cert_info::split_cluster_info "${WORKDIR}/$mode/cluster-info.txt"
+
+    sudo microk8s inspect
+    sudo mv "${k8s_dir}"/inspection-report-*.tar.gz .
+    sudo chown bobb:users inspection-report-*.tar.gz
+    tar xzf inspection-report-*.tar.gz
+
+    local crt dir
+    for dir in 'args' 'certs' 'credentials'; do
+        mkdir -p "${dir}" ||:
+        sudo cp -r "${k8s_dir}/${dir}"/* "$dir"/
+        sudo chown -R bobb:users "$dir"
+    done
+    for crt in certs/*.crt; do
+        openssl x509 -noout -text -in "$crt" > "$crt".inf
+    done
+
+    local k8s_type k8s_data_json
+    for k8s_type in 'configMap' 'secret'; do
+        k8s_data_json="all.${k8s_type}.json"
+        kubectl get "$k8s_type" -A -o json > "$k8s_data_json"
+        get_cert_info::extract_k8sdata "$k8s_data_json"
+    done
+
+    cd "$HOMEDIR" || exit
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::extract_k8sdata() {
+
+    local -r k8s_data_json="${1:?}"
+
+    local -i idx datalen len="$(jq '.items|length' "$k8s_data_json")"
+    local dir item key
+    for (( idx=0 ; idx < len; idx++ )); do
+        item="$(jq ".items[$idx]" "$k8s_data_json")"
+        datalen="$(jq -r 'if has("data") then .data|keys|length else 0 end' <<< "$item")"
+        [ "$datalen" -eq 0 ] && continue
+        dir="./${k8s_type}/$(jq -r '.metadata.namespace + "." + .metadata.name' <<< "$item")"
+        mkdir -p "$dir" ||:
+        while read -r key; do
+            if [ "$k8s_type" = 'secret' ]; then
+                jq -r ".data.\"$key\"" <<< "$item" | base64 -d > "${dir}/${key}"
+            else
+                jq -r ".data.\"$key\"" <<< "$item" > "${dir}/${key}"
+            fi
+        done < <(jq -r '.data|keys[]' <<< "$item")
+    done
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::get_fields() {
+    local -ar field_names=( 'authority_key_identifier'
+                            'subject_key_identifier'
+                            'basic_constraints'
+                            'subject'
+                            'issuer' )
+    printf '%s\n' "${field_names[@]}"
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::get_k8s_certs_config() {
+
+    local -rA pem_fields=( ['subject']='Subject:'
+                           ['issuer']='Issuer:'
+                           ['basic_constraints']='X509v3 Basic Constraints:'
+                           ['subject_key_identifier']='X509v3 Subject Key Identifier:'
+                           ['authority_key_identifier']='X509v3 Authority Key Identifier:' )
+
+    local dir file fld val
+    local -i line_num num_files=0
+    local -A keys=() pubkeys=()
+
+    while read -r fld; do
+        eval "local -A $fld=()"
+    done < <(get_cert_info::get_fields)
+
+    while read -r file; do
+        keys["$file"]="$(openssl pkey -pubout -outform pem -in "$file" | sha256sum | cut -d ' ' -f 1)"
+    done < <(find . -name '*.key' -type f | awk '{print substr($0, 3)}')
+
+    while read -r file; do
+        get_cert_info::split_chained_cert "${file//.crt}"
+    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' * | grep -E '/(secret|configMap)/' | grep -vE ':(0|1)$' | cut -d ':' -f 1 )
+
+    while read -r file; do
+        file="${file}.inf"
+        (( num_files++ )) ||:
+        #shellcheck disable=SC2034
+        pubkeys["${file}.inf"]="$(openssl x509 -noout -pubkey -in "${file//.inf}" | sha256sum | cut -d ' ' -f 1)"
+        [ -f "$file" ] || (openssl x509 -noout -text -in "${file//.inf}" > "$file")
+        while read -r fld; do
+           line_num="$(grep --line-number "${pem_fields[$fld]}" "$file" | cut -d ':' -f 1)"
+           [ "${line_num:-0}" = 0 ] && continue
+           case "$fld" in
+               issuer|subject)
+                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+'"${pem_fields[$fld]}"' ||')"
+                   [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
+                   # shellcheck disable=SC1087
+                   eval "$fld['$file']='${val}'"
+                   ;;
+               basic_constraints|subject_key_identifier)
+                   (( line_num++ )) ||:
+                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+||')"
+                   [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
+                   # shellcheck disable=SC1087
+                   eval "$fld['$file']='${val}'"
+                   ;;
+               authority_key_identifier)
+                   (( line_num++ )) ||:
+                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+(keyid:)*||')"
+                   [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
+                   # shellcheck disable=SC1087
+                   eval "$fld['$file']='${val}'"
+                   ;;
+           esac
+        done < <(get_cert_info::get_fields)
+    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' * | grep ':1$' | cut -d ':' -f 1 )
+
+
+    local -r logfile="${WORKDIR}/k8s_certs_config.log"
+    {
+        printf 'Number of files scanned: %d (%d)\n' "$num_files" "${#pubkeys[*]}"
+
+        local -a dirs=( 'soho-ball' 'config.map.org' 'config.map.home-1' 'config.map.s5-1' 'config.map.home-2' 'config.map.s5-2')
+        for dir in "${dirs[@]}"; do
+            get_cert_info::summary "$dir"
+            echo
+            while read -r fld; do
+                get_cert_info::inspect "${dir}/" "$fld"
+                echo
+            done < <(get_cert_info::get_fields)
+        done
+        echo '==========================================================================='
+    } | tee "$logfile"
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::inspect() {
+
+    local -r dir="${1:?}"
+    local -r param_name="${2:?}"
+    local -n params="${2:?}"
+
+    local -A inspect=()
+    local -a files
+    local file ski fld
+    local -ir len="${#dir}"
+
+    for file in "${!params[@]}"; do
+        if [ "${file:0:$len}" = "$dir" ]; then
+            inspect[${params[$file]}]='#'
+        fi
+    done
+
+    printf '    found %d instances of %s:\n' "${#inspect[@]}" "$param_name"
+    for fld in $(printf '%s\n' "${!inspect[@]}" | sort); do
+        if [ "$param_name" = 'authority_key_identifier' ]; then
+            ski=''
+            for file in "${!params[@]}"; do
+                # shellcheck disable=SC2154
+                [ "${subject_key_identifier[$file]}" ] || continue
+                if [ "${subject_key_identifier[$file]}" = "$fld" ]; then
+                    if [ "${#ski}" = 0 ] || [ "${#ski}" -gt "${#file}" ]; then
+                        ski="$file"
+                    fi
+                fi
+            done
+            printf '        %s    ->    %s\n' "$fld" "${ski//.inf}"
+        else
+            printf '        %s\n' "$fld"
+        fi
+        files=()
+        for file in "${!params[@]}"; do
+            if [ "${params[$file]}" = "$fld" ] && [ "${file:0:$len}" = "$dir" ]; then
+                files+=( "$file" )
+            fi
+        done
+        for file in $(get_cert_info::sort_files 'files'); do
+            printf '            %s\n' "${file//.inf}"
+        done
+    done
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::main() {
+
+    local -r HOMEDIR='/home/bobb/workspace'
+    local -r WORKDIR="${HOMEDIR}/certs-info"
+    local -r CERTS_DIR="${HOMEDIR}/newcerts"
+
+    cd "$HOMEDIR" || exit
+    [ -d "$WORKDIR" ] && sudo rm -rf "$WORKDIR"
+    mkdir -p "$WORKDIR"
+    cp "$CERTS_DIR"/* "$WORKDIR"
+
+
+    mkdir -p "${WORKDIR}/soho-ball/" ||:
+    cp /home/bobb/.inf/ssl/* "${WORKDIR}/soho-ball/"
+
+
+    "${HOMEDIR}/reinstall.cluster"
+    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
+    sleep 180
+    get_cert_info::collect_info 'config.map.org'
+
+
+    sudo microk8s refresh-certs "$CERTS_DIR"/
+    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
+    cp current/config.devk8s.home ~/.kube/config
+    sleep 180
+    get_cert_info::collect_info 'config.map.home-1'
+
+
+    sudo microk8s refresh-certs -u
+    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
+    cp current/config.devk8s.home ~/.kube/config
+    sleep 180
+    get_cert_info::collect_info 'config.map.s5-1'
+
+
+    sudo microk8s refresh-certs "$CERTS_DIR"/
+    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
+    cp current/config.devk8s.home ~/.kube/config
+    sleep 180
+    get_cert_info::collect_info 'config.map.home-2'
+
+
+    sudo microk8s refresh-certs -u
+    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
+    cp current/config.devk8s.home ~/.kube/config
+    sleep 180
+    get_cert_info::collect_info 'config.map.s5-2'
+
+
+    get_cert_info::get_k8s_certs_config
+
+
+    # now tar up everything
+    sudo chown -R bobb:users "$WORKDIR"
+    cd "$WORKDIR" ||:
+    tar -czf "${WORKDIR}.tgz" ./*
+    sudo rm -rf "$WORKDIR"
+}
+
+#----------------------------------------------------------------------------------------------
+function get_cert_info::onExit()
+{
+    set +o errexit
+    set +o nounset
+    trap - EXIT
+    trap - ERR
+    trap - INT
+    trap - PIPE
+
+    local -i elapsed=$(( $(date '+%s') - START_TIME ))
+    if [ $elapsed -gt 2 ];then
+        printf '\nElapsed time: %02d:%02d:%02d\n' $((elapsed / 3600)) $((elapsed % 3600 / 60)) $((elapsed % 60)) >&2
+    fi
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::sort_files() {
+
+    local -n params="${1:?}"
+    printf '%s\n' "${params[@]}" | sort
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::split_chained_cert() {
+
+    local -r name="${1:?}"
+    awk -v fname="$name" '
+BEGIN {
+    n = 0
+}
+/-----BEGIN CERTIFICATE-----/{
+  crt = fname ".p" ++n ".crt"
+}
+crt {print > crt}
+/-----END CERTIFICATE-----/{
+   close(crt)
+   cmd = "openssl x509 -noout -text -in " crt " > " crt ".inf"
+   system(cmd)
+   crt = ""
+}
+END {
+    if (n == 1) {
+        cmd = "rm " fname ".p1.crt"
+        system(cmd)
+    }
+}' "$name"
+
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::split_cluster_info() {
+    # Script generated by AI from the following prompt:
+    #
+    #   I have a file containing several sections:
+    #
+    #   The first section is a JSON blob '{.......}'. This should be saved as 'cluster.cfg.json'.
+    #
+    #   There are then multiple sections which are delimited with the lines:
+    #   ==== START logs for container <TYPE> of pod <NS>/<ID> ====
+    #   ==== END logs for container <TYPE> of pod <NS>/<ID> ====
+    #   Each of these sections should be saved as NS_ID.log
+    #
+    #   The last section is another JSON blob '{.....}{....}{....}'. This should be saved as 'cluster.info.json'
+    #
+    #   The first JSON blob should contain everything from the first line of my input file up until, but excluding, the first line of the first log section.
+    #   The last JSON blob should contain everything from the line after the last log section to the end of the input file
+    #
+    #
+    #   Using BASH, create a script which will split my file, by section, into individual files
+
+
+    local -r input_file="${1:?}"
+    local -r dir="$(dirname "$input_file")"
+    local -r state_json="${dir}/cluster.state.json"
+    local -r info_json="${dir}/cluster.info.json"
+
+    # Extract all sections
+    awk  -v sname="$state_json" -v ename="$info_json"  'BEGIN { log_file = sname ; last = log_file }
+        /^==== START logs for container/ {
+            split($0, arr, "[ /]")
+            log_file = arr[6] "__" arr[9] "__" arr[10] ".log"
+            print NR ":  " log_file
+        }
+        log_file {
+            if (last != log_file) {
+                close(log_file)
+                last = log_file
+            }
+            print > log_file
+        }
+        /^==== END logs for container/ {
+            log_file = ename
+        }
+    ' "$input_file"
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::summary() {
+
+    local -r dir="${1:?}"
+
+    local -r SPACES='                                                                          '
+    local -a files=()
+    local -A shas=()
+    local file fld sha keyfile lastsha
+    local -ir len="${#dir}"
+    local -i maxlen=0 bs=0
+
+    echo
+    echo '==========================================================================='
+    echo "$dir"
+
+    for file in "${!pubkeys[@]}"; do
+        if [ "${file:0:$len}" = "$dir" ]; then
+            files+=( "$file" )
+            eval "shas['$file']='${pubkeys[$file]}'"
+            [ "$maxlen" -lt "${#file}" ] && maxlen="${#file}"
+        fi
+    done
+    printf '\n    Summary of %d files in %s\n' "${#files[@]}" "$dir"
+    lastsha=''
+    for sha in $(printf '%s\n' "${shas[@]}" | sort); do
+        file=''
+        for fld in $(printf '%s\n' "${files[@]}" | sort); do
+            [ "${shas[$fld]}" = "$sha" ] || continue
+            file="$fld"
+            unset shas["$fld"]
+            break
+        done
+        if [ "$lastsha" = "$sha" ]; then
+            printf '                                                                            %s\n' "${file//.inf}"
+            continue
+        fi
+        keyfile=''
+        for fld in "${!keys[@]}"; do
+            [ "${keys[$fld]}" = "$sha" ] || continue
+            keyfile="$fld"
+            break
+        done
+        if [ "${#keyfile}" -gt 0 ]; then
+            bs="$(( maxlen - ${#file} ))"
+            printf '        %s    %s%s   ->   %s\n' "$sha" "${file//.inf}" "${SPACES::$bs}" "$keyfile"
+        else
+            printf '        %s    %s\n' "$sha" "${file//.inf}"
+        fi
+        lastsha="$sha"
+    done
+}
+
+#------------------------------------------------------------------------

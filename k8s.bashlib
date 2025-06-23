@@ -1,4 +1,5 @@
 #!/bin/echo 'This script cannot be executed directly. Please source from another script'
+# k8s.bashlib
 
 #----------------------------------------------------------------------------------------------
 #  functions for 'k8s.app'
@@ -405,7 +406,7 @@ function k8s::add_new_content() {
             if [ "${name: -12}" = 'prod.k8s.home' ]; then
                 # patch object
                 name="${name/prod/dev}"
-                k8s::__run "$KUBECTL" patch ingress -n "$ns" "$object" --patch='[{"op": "replace", "path": "/spec/rules/0/host", "value": "'"${name}"'"}]'
+                k8s::__run "$KUBECTL" patch ingress -n "$ns" "$object" --type='json' -p '[{"op": "replace", "path": "/spec/rules/0/host", "value": "'"${name}"'"}]'
                 sleep 5
             fi
         done < <("$KUBECTL"  get ingress -A -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}')
@@ -473,7 +474,8 @@ function k8s::capture_status() {
 
     echo 'capturing status'
     mkdir -p "$CURRENT" ||:
-    k8s::__run "$KUBECTL" cluster-info | tee "${CURRENT}/cluster-info.txt"
+    k8s::__run "$KUBECTL" cluster-info dump > "${CURRENT}/cluster-info.txt"
+    k8s::__run "$KUBECTL" cluster-info
     k8s::__run "$KUBECTL" get nodes | tee "${CURRENT}/nodes.txt"
     k8s::__run "$KUBECTL" get all -A | tee "${CURRENT}/all.txt"
     (k8s::dump_apis ||:)
