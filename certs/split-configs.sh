@@ -11,7 +11,7 @@ source "$(dirname "$0")/get_cert_info.bashlib"
 trap get_cert_info::onExit EXIT
 IFS=$'\n\t'
 
-declare -r WORKDIR='/c/Downloads/work.certs/k8s/config.map.home-1'
+declare -r WORKDIR='/c/Downloads/work.certs/certs/config.map.home-1'
 cd "$WORKDIR" || exit
 
 declare k8s_type k8s_data_json

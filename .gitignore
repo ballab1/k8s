@@ -1,3 +1,7 @@
+apps/jenkins/20.jenkins-certs.Secret.yml
+apps/jenkins-exporter/31.Secrets.yml
+
+
 # Created by .gitignore support plugin (hsz.mobi)
 .idea
 **/*.tmp

@@ -10,7 +10,7 @@ source "$(dirname "$0")/get_cert_info.bashlib"
 trap get_cert_info::onExit EXIT
 IFS=$'\n\t'
 
-declare -r WORKDIR='/c/Downloads/work.certs/k8s'
+declare -r WORKDIR='/c/Downloads/work.certs/certs'
 cd "$WORKDIR" || exit
 
 get_cert_info::get_k8s_certs_config

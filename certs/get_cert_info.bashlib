@@ -5,23 +5,26 @@
 function get_cert_info::collect_info() {
 
     local -r mode="${1:?}"
-    local -r k8s_dir='/var/snap/microk8s/current'
+
+    # save config & let system quiesce before continuing
+    get_cert_info::copy_config
+    sleep 180
 
     mkdir -p "${WORKDIR}/$mode"
     cd "${WORKDIR}/$mode" ||:
 
-    kubectl cluster-info dump > 'cluster-info.txt'
+    "$KUBECTL" cluster-info dump > 'cluster-info.txt'
     get_cert_info::split_cluster_info "${WORKDIR}/$mode/cluster-info.txt"
 
-    sudo microk8s inspect
-    sudo mv "${k8s_dir}"/inspection-report-*.tar.gz .
+    sudo "$MICROK8S" inspect
+    sudo mv "${K8S_DIR}"/inspection-report-*.tar.gz .
     sudo chown bobb:users inspection-report-*.tar.gz
     tar xzf inspection-report-*.tar.gz
 
     local crt dir
     for dir in 'args' 'certs' 'credentials'; do
         mkdir -p "${dir}" ||:
-        sudo cp -r "${k8s_dir}/${dir}"/* "$dir"/
+        sudo cp -r "${K8S_DIR}/${dir}"/* "$dir"/
         sudo chown -R bobb:users "$dir"
     done
     for crt in certs/*.crt; do
@@ -31,11 +34,23 @@ function get_cert_info::collect_info() {
     local k8s_type k8s_data_json
     for k8s_type in 'configMap' 'secret'; do
         k8s_data_json="all.${k8s_type}.json"
-        kubectl get "$k8s_type" -A -o json > "$k8s_data_json"
+        "$KUBECTL" get "$k8s_type" -A -o json > "$k8s_data_json"
         get_cert_info::extract_k8sdata "$k8s_data_json"
     done
+}
 
-    cd "$HOMEDIR" || exit
+#------------------------------------------------------------------------------------
+function get_cert_info::copy_config() {
+
+    mkdir -p "$HOMEDIR" ||:
+    case "$(hostname | awk '{print substr($0, 1, 2)}')" in
+       s1|s5|s7)      local -r config='devk8s';;
+       s4|s6|s8)      local -r config='prodk8s';;
+    esac
+
+    local -r cfg_file="${HOMEDIR}/current/config.${config}.home"
+    "$MICROK8S" config | sed -e "s|microk8s|${config}|g" > "$cfg_file"
+    cp "$cfg_file" "${HOME}/.kube/config"
 }
 
 #------------------------------------------------------------------------------------
@@ -81,7 +96,7 @@ function get_cert_info::get_k8s_certs_config() {
                            ['authority_key_identifier']='X509v3 Authority Key Identifier:' )
 
     local dir file fld val
-    local -i line_num num_files=0
+    local -i line_num
     local -A keys=() pubkeys=()
 
     while read -r fld; do
@@ -94,49 +109,48 @@ function get_cert_info::get_k8s_certs_config() {
 
     while read -r file; do
         get_cert_info::split_chained_cert "${file//.crt}"
-    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' * | grep -E '/(secret|configMap)/' | grep -vE ':(0|1)$' | cut -d ':' -f 1 )
+    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' | grep -E '/(secret|configMap)/' | grep -vE ':(0|1)$' | cut -d ':' -f 1 )
 
     while read -r file; do
-        file="${file}.inf"
-        (( num_files++ )) ||:
         #shellcheck disable=SC2034
-        pubkeys["${file}.inf"]="$(openssl x509 -noout -pubkey -in "${file//.inf}" | sha256sum | cut -d ' ' -f 1)"
-        [ -f "$file" ] || (openssl x509 -noout -text -in "${file//.inf}" > "$file")
+        pubkeys["$file"]="$(openssl x509 -noout -pubkey -in "$file" | sha256sum | cut -d ' ' -f 1)"
+        [ -f "${file}.inf" ] || (openssl x509 -noout -text -in "$file" > "${file}.inf")
         while read -r fld; do
-           line_num="$(grep --line-number "${pem_fields[$fld]}" "$file" | cut -d ':' -f 1)"
+           line_num="$(grep --line-number "${pem_fields[$fld]}" "${file}.inf" | cut -d ':' -f 1)"
            [ "${line_num:-0}" = 0 ] && continue
            case "$fld" in
                issuer|subject)
-                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+'"${pem_fields[$fld]}"' ||')"
+                   val="$(sed -n "${line_num}p" "${file}.inf" | sed -E -e 's|^\s+'"${pem_fields[$fld]}"' ||')"
                    [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
                    # shellcheck disable=SC1087
                    eval "$fld['$file']='${val}'"
                    ;;
                basic_constraints|subject_key_identifier)
                    (( line_num++ )) ||:
-                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+||')"
+                   val="$(sed -n "${line_num}p" "${file}.inf" | sed -E -e 's|^\s+||')"
                    [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
                    # shellcheck disable=SC1087
                    eval "$fld['$file']='${val}'"
                    ;;
                authority_key_identifier)
                    (( line_num++ )) ||:
-                   val="$(sed -n "${line_num}p" "$file" | sed -E -e 's|^\s+(keyid:)*||')"
+                   val="$(sed -n "${line_num}p" "${file}.inf" | sed -E -e 's|^\s+(keyid:)*||')"
                    [ "$val" = 'Certificate:' ] && echo "Found 'Certificate' in ${file} section '$fld'"
                    # shellcheck disable=SC1087
                    eval "$fld['$file']='${val}'"
                    ;;
            esac
         done < <(get_cert_info::get_fields)
-    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' * | grep ':1$' | cut -d ':' -f 1 )
+    done < <( grep -rc '\-----BEGIN CERTIFICATE-----' | grep ':1$' | cut -d ':' -f 1 )
 
 
     local -r logfile="${WORKDIR}/k8s_certs_config.log"
     {
-        printf 'Number of files scanned: %d (%d)\n' "$num_files" "${#pubkeys[*]}"
+        get_cert_info::summary '.'
 
         local -a dirs=( 'soho-ball' 'config.map.org' 'config.map.home-1' 'config.map.s5-1' 'config.map.home-2' 'config.map.s5-2')
         for dir in "${dirs[@]}"; do
+            [ -d "$dir" ] || continue
             get_cert_info::summary "$dir"
             echo
             while read -r fld; do
@@ -155,9 +169,34 @@ function get_cert_info::inspect() {
     local -r param_name="${2:?}"
     local -n params="${2:?}"
 
+    function get_cert_info::inspect::get_files() {
+        local -r fld="${1:?}"
+        local file
+        for file in "${!params[@]}"; do
+            if [ "${params[$file]}" = "$fld" ] && [ "${file:0:$len}" = "$dir" ]; then
+                echo "$file"
+            fi
+        done
+    }
+
+    function get_cert_info::inspect::get_ski() {
+        local -r fld="${1:?}"
+        local file ski=''
+        for file in "${!params[@]}"; do
+            # shellcheck disable=SC2154
+            [ "${subject_key_identifier[$file]:-}" ] || continue
+            if [ "${subject_key_identifier[$file]}" = "$fld" ]; then
+                if [ "${#ski}" = 0 ] || [ "${#ski}" -gt "${#file}" ]; then
+                    ski="$file"
+                fi
+            fi
+        done
+        echo "$ski"
+    }
+
     local -A inspect=()
     local -a files
-    local file ski fld
+    local file fld
     local -ir len="${#dir}"
 
     for file in "${!params[@]}"; do
@@ -169,28 +208,13 @@ function get_cert_info::inspect() {
     printf '    found %d instances of %s:\n' "${#inspect[@]}" "$param_name"
     for fld in $(printf '%s\n' "${!inspect[@]}" | sort); do
         if [ "$param_name" = 'authority_key_identifier' ]; then
-            ski=''
-            for file in "${!params[@]}"; do
-                # shellcheck disable=SC2154
-                [ "${subject_key_identifier[$file]}" ] || continue
-                if [ "${subject_key_identifier[$file]}" = "$fld" ]; then
-                    if [ "${#ski}" = 0 ] || [ "${#ski}" -gt "${#file}" ]; then
-                        ski="$file"
-                    fi
-                fi
-            done
-            printf '        %s    ->    %s\n' "$fld" "${ski//.inf}"
+            printf '        %s    ->    %s\n' "$fld" "$( get_cert_info::inspect::get_ski "$fld" )"
         else
             printf '        %s\n' "$fld"
         fi
-        files=()
-        for file in "${!params[@]}"; do
-            if [ "${params[$file]}" = "$fld" ] && [ "${file:0:$len}" = "$dir" ]; then
-                files+=( "$file" )
-            fi
-        done
-        for file in $(get_cert_info::sort_files 'files'); do
-            printf '            %s\n' "${file//.inf}"
+        mapfile files < <(get_cert_info::inspect::get_files "$fld" | sort)
+        for file in "${files[@]}"; do
+            printf '            %s' "$file"
         done
     done
 }
@@ -198,54 +222,35 @@ function get_cert_info::inspect() {
 #------------------------------------------------------------------------------------
 function get_cert_info::main() {
 
-    local -r HOMEDIR='/home/bobb/workspace'
+    local -r HOME='/home/bobb'
+    local -r HOMEDIR="${HOME}/workspace"
     local -r WORKDIR="${HOMEDIR}/certs-info"
     local -r CERTS_DIR="${HOMEDIR}/newcerts"
+    local -r REF_CERTS="${HOME}/GIT/Soho-Ball.certs/Soho-Ball_CA/K8S"
+    local -r K8S_DIR='/var/snap/microk8s/current'
+    local -r KUBECTL='/snap/bin/microk8s.kubectl'
+    local -r MICROK8S='/snap/bin/microk8s'
+
+    get_cert_info::update_certs
 
     cd "$HOMEDIR" || exit
     [ -d "$WORKDIR" ] && sudo rm -rf "$WORKDIR"
     mkdir -p "$WORKDIR"
-    cp "$CERTS_DIR"/* "$WORKDIR"
+    [ -f "$CERTS_DIR" ] && cp "$CERTS_DIR"/* "$WORKDIR"
 
 
     mkdir -p "${WORKDIR}/soho-ball/" ||:
-    cp /home/bobb/.inf/ssl/* "${WORKDIR}/soho-ball/"
+    cp "${HOME}/.inf/ssl"/* "${WORKDIR}/soho-ball/"
 
 
-    "${HOMEDIR}/reinstall.cluster"
-    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
-    sleep 180
+#    "${HOMEDIR}/reinstall.cluster"
     get_cert_info::collect_info 'config.map.org'
 
 
-    sudo microk8s refresh-certs "$CERTS_DIR"/
-    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
-    cp current/config.devk8s.home ~/.kube/config
-    sleep 180
-    get_cert_info::collect_info 'config.map.home-1'
+#    get_cert_info::main_1
 
 
-    sudo microk8s refresh-certs -u
-    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
-    cp current/config.devk8s.home ~/.kube/config
-    sleep 180
-    get_cert_info::collect_info 'config.map.s5-1'
-
-
-    sudo microk8s refresh-certs "$CERTS_DIR"/
-    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
-    cp current/config.devk8s.home ~/.kube/config
-    sleep 180
-    get_cert_info::collect_info 'config.map.home-2'
-
-
-    sudo microk8s refresh-certs -u
-    microk8s config | sed -e 's|micro|dev|g' > current/config.devk8s.home
-    cp current/config.devk8s.home ~/.kube/config
-    sleep 180
-    get_cert_info::collect_info 'config.map.s5-2'
-
-
+    cd "$WORKDIR" || exit
     get_cert_info::get_k8s_certs_config
 
 
@@ -254,6 +259,49 @@ function get_cert_info::main() {
     cd "$WORKDIR" ||:
     tar -czf "${WORKDIR}.tgz" ./*
     sudo rm -rf "$WORKDIR"
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::main_1() {
+
+    find "$CERTS_DIR" -delete
+    cp  "${REF_CERTS}"/*  "$CERTS_DIR"/
+
+    cd "$CERTS_DIR"
+    sudo "$MICROK8S" refresh-certs --cert ca.crt
+    sudo "$MICROK8S" refresh-certs --cert front-proxy-client.crt
+    sudo "$MICROK8S" refresh-certs --cert server.crt
+
+    get_cert_info::collect_info 'config.map.home-1'
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::main_2() {
+
+    sudo "$MICROK8S" refresh-certs "$CERTS_DIR"/
+    get_cert_info::collect_info 'config.map.home-1'
+
+
+    sudo "$MICROK8S" refresh-certs -u
+    get_cert_info::collect_info 'config.map.s5-1'
+
+
+    sudo "$MICROK8S" refresh-certs "$CERTS_DIR"/
+    get_cert_info::collect_info 'config.map.home-2'
+
+
+    sudo "$MICROK8S" refresh-certs -u
+    get_cert_info::collect_info 'config.map.s5-2'
+}
+
+#------------------------------------------------------------------------------------
+function get_cert_info::main_3() {
+
+    sudo "$MICROK8S" stop
+    sudo cp "${REF_CERTS}"/* "${K8S_DIR}/certs"
+    sudo "$MICROK8S" start
+    sleep 20
+    get_cert_info::collect_info 'config.map.home-1'
 }
 
 #----------------------------------------------------------------------------------------------
@@ -270,6 +318,54 @@ function get_cert_info::onExit()
     if [ $elapsed -gt 2 ];then
         printf '\nElapsed time: %02d:%02d:%02d\n' $((elapsed / 3600)) $((elapsed % 3600 / 60)) $((elapsed % 60)) >&2
     fi
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::print_summary() {
+
+    local -ri maxlen="${1:?}"
+
+    function get_cert_info::print_summary::get_file() {
+        local fld
+        for fld in $(printf '%s\n' "${files[@]}" | sort); do
+            [ "${shas[$fld]}" = "$sha" ] || continue
+            echo "$fld"
+            return
+        done
+        echo ''
+    }
+    function get_cert_info::print_summary::get_key() {
+        local fld
+        for fld in "${!keys[@]}"; do
+            [ "${keys[$fld]}" = "$sha" ] || continue
+            echo "$fld"
+            return
+        done
+        echo ''
+    }
+
+    local SPACES='                                                                          '
+    while [ "${#SPACES}" -lt "$maxlen" ]; do
+        SPACES=" $SPACES"
+    done
+
+    echo
+    for sha in $(printf '%s\n' "${shas[@]}" | sort); do
+        file="$( get_cert_info::print_summary::get_file "$sha" )"
+        unset shas["$file"]
+        if [ "$lastsha" = "$sha" ]; then
+            printf '                                                                            %s\n' "$file"
+            continue
+        fi
+        keyfile="$( get_cert_info::print_summary::get_key "$sha" )"
+        if [ "${#keyfile}" -gt 0 ]; then
+            local -i bs="$(( maxlen - ${#file} ))"
+            printf '        %s    %s%s   ->   %s\n' "$sha" "$file" "${SPACES::$bs}" "$keyfile"
+        else
+            printf '        %s    %s\n' "$sha" "$file"
+        fi
+        lastsha="$sha"
+    done
 }
 
 #------------------------------------------------------------------------
@@ -358,52 +454,113 @@ function get_cert_info::summary() {
 
     local -r dir="${1:?}"
 
-    local -r SPACES='                                                                          '
     local -a files=()
     local -A shas=()
     local file fld sha keyfile lastsha
     local -ir len="${#dir}"
-    local -i maxlen=0 bs=0
+    local -i maxlen=0
 
     echo
     echo '==========================================================================='
-    echo "$dir"
 
-    for file in "${!pubkeys[@]}"; do
-        if [ "${file:0:$len}" = "$dir" ]; then
+    if [ "$dir" = '.' ]; then
+        echo
+        printf 'Total number of certificate files scanned: %d\n' "${#pubkeys[*]}"
+        for file in "${!pubkeys[@]}"; do
             files+=( "$file" )
-            eval "shas['$file']='${pubkeys[$file]}'"
             [ "$maxlen" -lt "${#file}" ] && maxlen="${#file}"
-        fi
-    done
-    printf '\n    Summary of %d files in %s\n' "${#files[@]}" "$dir"
-    lastsha=''
-    for sha in $(printf '%s\n' "${shas[@]}" | sort); do
-        file=''
-        for fld in $(printf '%s\n' "${files[@]}" | sort); do
-            [ "${shas[$fld]}" = "$sha" ] || continue
-            file="$fld"
-            unset shas["$fld"]
-            break
+            eval "shas['$file']='${pubkeys[$file]}'"
         done
-        if [ "$lastsha" = "$sha" ]; then
-            printf '                                                                            %s\n' "${file//.inf}"
-            continue
-        fi
-        keyfile=''
-        for fld in "${!keys[@]}"; do
-            [ "${keys[$fld]}" = "$sha" ] || continue
-            keyfile="$fld"
-            break
+        get_cert_info::print_summary "$maxlen"
+
+        echo
+        printf 'Number of keys scanned: %d\n' "${#keys[*]}"
+        shas=()
+        for file in "${!keys[@]}"; do
+            sha="${keys[$file]}"
+            shas[$sha]='#'
+            [ "$maxlen" -lt "${#file}" ] && maxlen="${#file}"
         done
-        if [ "${#keyfile}" -gt 0 ]; then
-            bs="$(( maxlen - ${#file} ))"
-            printf '        %s    %s%s   ->   %s\n' "$sha" "${file//.inf}" "${SPACES::$bs}" "$keyfile"
-        else
-            printf '        %s    %s\n' "$sha" "${file//.inf}"
-        fi
-        lastsha="$sha"
-    done
+        echo
+        for sha in "${!shas[@]}"; do
+            sp=0
+            for file in "${!keys[@]}";do
+                if [ "${keys[$file]}" = "$sha" ]; then
+                    if [ "$sp" -eq 0 ]; then
+                        printf '        %s   ->   %s\n' "$sha" "$file"
+                        sp=1
+                    else
+                        printf '                  %s\n' "$file"
+                    fi
+                fi
+            done
+        done
+
+    else
+        echo "$dir"
+        for file in "${!pubkeys[@]}"; do
+            [ "${file:0:$len}" = "$dir" ] || continue
+
+            eval "shas['$file']='${pubkeys[$file]}'"
+            files+=( "$file" )
+            [ "$maxlen" -lt "${#file}" ] && maxlen="${#file}"
+        done
+        printf '\n    Summary of %d files in %s\n' "${#files[@]}" "$dir"
+        get_cert_info::print_summary "$maxlen"
+    fi
+}
+
+#------------------------------------------------------------------------
+function get_cert_info::update_certs() {
+
+    function k8s::update_jenkins_certs() {
+        cat <<EOF
+apiVersion: v1
+type: Opaque
+kind: Secret
+metadata:
+  name: jenkins-certs
+  namespace: jenkins
+data:
+  root-ca.tls.crt: >-
+    $(base64 -w 0  "${HOME}/.inf/ssl/SohoBall_CA.crt")
+  root-ca.tls.key: >-
+    $(base64 -w 0  "${HOME}/.inf/ssl/SohoBall_CA.key")
+  server-ca.tls.crt: >-
+    $(base64 -w 0 "${HOME}/.inf/ssl/SohoBall-Server.crt")
+  server-ca.tls.key: >-
+    $(base64 -w 0 "${HOME}/.inf/ssl/SohoBall-Server.key")
+  clientsidestore: >-
+    $(base64 -w 0 "${HOME}/.inf/ssl/dhparam.pem")
+EOF
+}
+    function k8s::update_jenkins_exporter_certs() {
+        cat <<EOF > "$target"
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: client-certs
+  namespace: jenkins-exporter
+data:
+  tls.crt: >-
+    $(base64 -w 0 "${HOME}/.inf/ssl/SohoBall_CA.crt")
+  tls.key: >-
+    $(base64 -w 0 "${HOME}/.inf/ssl/SohoBall_CA.key")
+EOF
+}
+
+    local target
+
+    target='apps/jenkins/20.jenkins-certs.Secret.yml'
+    k8s::update_jenkins_certs > "$target"
+#    "$KUBECTL" delete -f "$target"
+#    "$KUBECTL" create -f "$target"
+
+    target='apps/jenkins-exporter/31.Secrets.yml'
+    k8s::update_jenkins_exporter_certs > "$target"
+#    "$KUBECTL" delete -f "$target"
+#    "$KUBECTL" create -f "$target"
 }
 
 #------------------------------------------------------------------------

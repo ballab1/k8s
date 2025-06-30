@@ -388,6 +388,7 @@ function k8s::add_new_content() {
 
     echo 'adding new content'
 
+    k8s::update_certs
     for app in "${K8S_APPS[@]}"; do
         k8s::__run "$KUBECTL" create -f "${PROGRAM_DIR}/apps/${app}/" ||:
         sleep 30  # wait for initialization to complete
@@ -1077,6 +1078,59 @@ function k8s::update_kube_config() {
 #    busy_timeoput="$(sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout;')"
 #    sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout = 20000;'
     k8s::log_elapsed "${FUNCNAME[0]}"
+}
+
+# -----------------------------------------------------------------------------------
+function k8s::update_certs() {
+
+    function k8s::update_jenkins_certs() {
+        cat <<EOF
+apiVersion: v1
+type: Opaque
+kind: Secret
+metadata:
+  name: jenkins-certs
+  namespace: jenkins
+data:
+  root-ca.tls.crt: >-
+    $(base64 -w 0  ~/.inf/ssl/SohoBall_CA.crt)
+  root-ca.tls.key: >-
+    $(base64 -w 0  ~/.inf/ssl/SohoBall_CA.key)
+  server-ca.tls.crt: >-
+    $(base64 -w 0 ~/.inf/ssl/SohoBall-Server.crt)
+  server-ca.tls.key: >-
+    $(base64 -w 0 ~/.inf/ssl/SohoBall-Server.key)
+  clientsidestore: >-
+    $(base64 -w 0 ~/.inf/ssl/dhparam.pem)
+EOF
+}
+    function k8s::update_jenkins_exporter_certs() {
+        cat <<EOF > "$target"
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: client-certs
+  namespace: jenkins-exporter
+data:
+  tls.crt: >-
+    $(base64 -w 0 ~/.inf/ssl/SohoBall_CA.crt)
+  tls.key: >-
+    $(base64 -w 0 ~/.inf/ssl/SohoBall_CA.key)
+EOF
+}
+
+    local target
+
+    target='apps/jenkins/20.jenkins-certs.Secret.yml'
+    k8s::update_jenkins_certs > "$target"
+    "$KUBECTL" delete -f "$target"
+    "$KUBECTL" create -f "$target"
+
+    target='apps/jenkins-exporter/31.Secrets.yml'
+    k8s::update_jenkins_exporter_certs > "$target"
+    "$KUBECTL" delete -f "$target"
+    "$KUBECTL" create -f "$target"
 }
 
 # -----------------------------------------------------------------------------------
