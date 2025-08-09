@@ -1,11 +1,11 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: redpanda
+  name: rp-console
   namespace: redpanda
   labels:
     app.kubernetes.io/component: redpanda
-    app.kubernetes.io/name: redpanda
+    app.kubernetes.io/name: rp-console
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
@@ -13,26 +13,26 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/component: redpanda
-      app.kubernetes.io/name: redpanda
+      app.kubernetes.io/name: rp-console
   template:
     metadata:
       labels:
         app.kubernetes.io/component: redpanda
-        app.kubernetes.io/name: redpanda
+        app.kubernetes.io/name: rp-console
     spec:
       volumes:
         - name: config-yml
           configMap:
             name: config-yml
       containers:
-        - name: redpanda
+        - name: rp-console
           command:
             - '/app/console'
           args:
             - '--config.filepath=/app/config/config.yml'
-          image: s2.ubuntu.home:5000/docker.redpanda.com/redpandadata/console:v3.0.0
+          image: s2.ubuntu.home:5000/docker.redpanda.com/redpandadata/console:v3.1.2
           ports:
-            - name: redpanda
+            - name: rp-console
               containerPort: 8080
               protocol: TCP
           resources:

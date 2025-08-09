@@ -391,6 +391,7 @@ function k8s::add_new_content() {
     k8s::update_certs
     for app in "${K8S_APPS[@]}"; do
         k8s::__run "$KUBECTL" create -f "${PROGRAM_DIR}/apps/${app}/" ||:
+#        jsonnet -e 'import "configMap.jsonnet"'   --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.key)"   --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.crt)"  --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.key)"  --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.crt)"
         sleep 30  # wait for initialization to complete
     done
 
@@ -991,7 +992,19 @@ function k8s::restore_statefull_apps() {
 
       devpi)
         k8s::verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
-        [ "$pod_name" ] && k8s::__run "$KUBECTL" delete pod "$pod_name" --namespace "$DEVPI_NAMESPACE"
+        if [ "${#pod_name}" -gt 0 ]; then
+            k8s::__run "$KUBECTL" delete pod "$pod_name" --namespace "$DEVPI_NAMESPACE"
+            k8s::verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
+            if [ "${#pod_name}" -gt 0 ]; then
+                "$KUBECTL" exec "$pod_name" --namespace "$DEVPI_NAMESPACE" -- sh -c '\
+                    devpi use http://localhost:3141; \
+                    devpi user -c testuser password=123; \
+                    devpi login testuser --password=123; \
+                    devpi index -c dev bases=root/pypi; \
+                    devpi use testuser/dev \
+                    '
+            fi
+        fi
         ;;
 
       *)
@@ -1286,7 +1299,7 @@ function k8s::verify_hostpath() {
   echo -e " ... ${GREEN}found ${pod}${RESET}"
 
   echo -e "make sure PV:${BLUE}${PV_NAME}${RESET} has local directory on '${BLUE}${host}${RESET}':"
-  echo -e " ... ${GREY}'sudo rm -rf '$dir';mkdir -p '$dir'${RESET}"
+  echo -e " ... ${GREY}mkdir -p '$dir'; chmod 777 '$dir'${RESET}"
   #shellcheck disable=SC2029
   ssh "$host" "mkdir -p '$dir'; sudo chmod 777 '$dir' ||:"
 

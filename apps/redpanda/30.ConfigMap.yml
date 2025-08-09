@@ -4,7 +4,7 @@ metadata:
   name: config-yml
   namespace: redpanda
   labels:
-    k8s-app: redpanda
+    k8s-app: rp-console
 data:
   config.yml: |
     kafka:
@@ -13,10 +13,21 @@ data:
         - s7.ubuntu.home:9092
         - s8.ubuntu.home:9092
       clientId: rpconsole
+      sasl:
+        enabled: false
     redpanda:
       adminApi:
-        enabled: false
+        enabled: true
         urls:
           - http://s3.ubuntu.home:9644
           - http://s7.ubuntu.home:9644
           - http://s8.ubuntu.home:9644
+#        authentication:
+#          basic:
+#            username: superuser
+#            password: secretpassword
+#          impersonateUser: false
+#    authentication:
+#      jwtSigningKey: vazxnT+ZHtxKslK6QlDGovcYnSjTk/lKMmZ+mHrBVE+YdVDkLgSuP6AszAKe9Gvq
+#      basic:
+#        enabled: true

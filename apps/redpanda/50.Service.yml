@@ -1,11 +1,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: redpanda
+  name: rp-console
   namespace: redpanda
   labels:
     app.kubernetes.io/component: redpanda
-    app.kubernetes.io/name: redpanda
+    app.kubernetes.io/name: rp-console
 spec:
   ipFamilies:
     - IPv4
@@ -14,9 +14,9 @@ spec:
     - name: http
       protocol: TCP
       port: 80
-      targetPort: redpanda
+      targetPort: rp-console
   selector:
     app.kubernetes.io/component: redpanda
-    app.kubernetes.io/name: redpanda
+    app.kubernetes.io/name: rp-console
   sessionAffinity: None
   type: ClusterIP

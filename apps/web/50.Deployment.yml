@@ -31,12 +31,18 @@ spec:
                 path: web.json
       containers:
         - name: web
-          image:  s2.ubuntu.home:5000/alpine/web:8dfaa1e002
+          image: s2.ubuntu.home:5000/alpine/web:a726e480d9
           imagePullPolicy: IfNotPresent
           ports:
             - name: web
               containerPort: 3000
               protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: log_level
           resources:
             limits:
               cpu: 200m

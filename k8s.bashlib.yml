@@ -34,6 +34,7 @@ PROD:
 #      - 'hubot'
       - 'devpi'
       - 'jenkins'
+      - 'jenkins-exporter'
 #      - 'minio'
       - 'pgadmin4'
       - 'postgres'
@@ -236,9 +237,9 @@ PROD:
 
 DEV:
   K8S_NODES:
-#    - 's1.ubuntu.home'
     - 's5.ubuntu.home'
-#    - 's7.ubuntu.home'
+    - 's1.ubuntu.home'
+    - 's7.ubuntu.home'
   JENKINS_ADMIN_KEY: 'aa74c6b2-798b-4047-a7aa-38a3f7de8078'
   JENKINS_TOKEN_KEY: 'd7c82b81-71dd-4260-9cdf-c5bff2012841'
   K8S_CLUSTERNAME: 'devk8s'
