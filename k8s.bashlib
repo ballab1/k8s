@@ -115,15 +115,18 @@ function reinit::create_registry_defs() {
 
     local host
     for host in "$@"; do
-        local reg="http://${host}"
+        local registry="https://${host}"
         reinit::run mkdir -p "${configPath}/$host"
-        cat << REGISTRY > "${configPath}/${host}/hosts.toml"
-server = "$reg"
 
-[host."$reg"]
-  capabilities = ["pull", "resolve"]
+        cat << REGISTRY > "${configPath}/${host}/hosts.toml"
+server = "$registry"
+
+[host."$registry"]
+  capabilities = ["pull", "resolve", 'push' ]
+  ca = '/mnt/GIT/Soho-Ball.certs/Soho-Ball_CA/certs/SohoBall-Server-Chain.crt'
 REGISTRY
         reinit::run chown -R root:microk8s "${configPath}/$host"
+
     done
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -209,8 +212,9 @@ function reinit::onexit() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function reinit::registry_refs() {
 
-    local registry="$(sed -E -e 's|^(.+):.*$|\1|' <<< "${REGISTRY}")"
-    nslookup "${registry}" | awk '{if((NR==5 && match($1,"^Name")>0)||(NR != 2 && match($1,"^Address")>0)){print $2 ":5000"}}'
+#    local registry="$(sed -E -e 's|^(.+):.*$|\1|' <<< "${REGISTRY}")"
+#    nslookup "${registry}" | awk '{if((NR==5 && match($1,"^Name")>0)||(NR != 2 && match($1,"^Address")>0)){print $2 ":5000"}}'
+    echo "$registry"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function reinit::remove_previous() {
@@ -388,7 +392,7 @@ function k8s::add_new_content() {
 
     echo 'adding new content'
 
-    k8s::update_certs
+#    k8s::update_certs
     for app in "${K8S_APPS[@]}"; do
         k8s::__run "$KUBECTL" create -f "${PROGRAM_DIR}/apps/${app}/" ||:
 #        jsonnet -e 'import "configMap.jsonnet"'   --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.key)"   --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.crt)"  --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.key)"  --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.crt)"
@@ -853,7 +857,7 @@ function k8s::reinstall_prometheus() {
     sleep 2
     microk8s enable prometheus
     sleep 2
-    k8s::__run "$KUBECTL" patch deployment grafana -n "$ns" -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/docker.io/grafana/grafana:11.1.5"}]}}}}'
+    k8s::__run "$KUBECTL" patch deployment grafana -n "$ns" -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"registry.ubuntu.home/docker.io/grafana/grafana:11.1.5"}]}}}}'
     k8s::__run "$KUBECTL" patch service alertmanager-main -n "$ns" -p '{"spec":{"type":"LoadBalancer"}}'
     k8s::__run "$KUBECTL" patch service prometheus-k8s -n "$ns" -p '{"spec":{"type":"LoadBalancer"}}'
     k8s::load_namespace 'prometheus'

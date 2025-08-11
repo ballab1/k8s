@@ -27,7 +27,7 @@ spec:
             readOnly: false
       containers:
         - name: devpi
-          image:  s2.ubuntu.home:5000/docker.io/muccg/devpi:4.5.1
+          image:  registry.ubuntu.home/docker.io/muccg/devpi:4.5.1
           env:
             - name: DEVPI_PASSWORD
               valueFrom:

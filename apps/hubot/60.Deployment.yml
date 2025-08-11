@@ -42,7 +42,7 @@ spec:
           command: 
             - redis-server
             - "/etc/redis/redis.conf"
-          image:  s2.ubuntu.home:5000/docker.io/redis:6.2.6
+          image:  registry.ubuntu.home/docker.io/redis:6.2.6
           resources:
             limits:
               cpu: 200m
@@ -73,7 +73,7 @@ spec:
                 secretKeyRef:
                    name: slack-token
                    key: secret
-          image:  s2.ubuntu.home:5000/alpine/hubot:v3.9.10
+          image:  registry.ubuntu.home/alpine/hubot:v3.9.10
           resources:
             limits:
               cpu: 200m

@@ -36,7 +36,7 @@ spec:
           command:
             - /usr/local/cmak/bin/cmak
             - "-Dconfig.file=/usr/local/cmak/conf/application.conf"
-          image: s2.ubuntu.home:5000/alpine/kafka-manager/3.0.0.6:dev
+          image: registry.ubuntu.home/alpine/kafka-manager/3.0.0.6:dev
           env:
             - name: JMX_PORT
               value: '7201'
