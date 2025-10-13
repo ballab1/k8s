@@ -30,7 +30,7 @@ spec:
             - '/app/console'
           args:
             - '--config.filepath=/app/config/config.yml'
-          image: registry.ubuntu.home/docker.redpanda.com/redpandadata/console:v3.1.2
+          image: registry.ubuntu.home/docker.redpanda.com/redpandadata/console:v3.2.2
           ports:
             - name: rp-console
               containerPort: 8080
@@ -52,6 +52,8 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: regcred
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: redpanda

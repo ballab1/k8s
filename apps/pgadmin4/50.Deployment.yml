@@ -30,7 +30,7 @@ spec:
             readOnly: false
       containers:
         - name: pgadmin4
-          image:  registry.ubuntu.home/docker.io/dpage/pgadmin4:9.6.0
+          image:  registry.ubuntu.home/docker.io/dpage/pgadmin4:9.8.0
           envFrom:
           env:
             - name: USER
@@ -70,6 +70,8 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: regcred
       nodeSelector:
         kubernetes.io/os: linux
       securityContext:

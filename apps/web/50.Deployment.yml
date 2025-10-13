@@ -31,7 +31,7 @@ spec:
                 path: web.json
       containers:
         - name: web
-          image: registry.ubuntu.home/alpine/web:1dbfa7457c
+          image: registry.ubuntu.home/alpine/web:e708fb4efc
           imagePullPolicy: IfNotPresent
           ports:
             - name: web
@@ -61,11 +61,11 @@ spec:
           imagePullPolicy: IfNotPresent
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-      imagePullSecrets:
-        - name: regcred
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: regcred
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: web
