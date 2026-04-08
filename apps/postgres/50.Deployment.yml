@@ -29,7 +29,7 @@ spec:
             readOnly: false
       containers:
         - name: postgres
-          image: s2.ubuntu.home:5000/docker.io/postgres:16.6-alpine3.19
+          image: registry.ubuntu.home/docker.io/postgres:17.6-alpine3.21
           imagePullPolicy: "IfNotPresent"
           ports:
             - name: postgres
@@ -40,7 +40,6 @@ spec:
                 name: postgres-config
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
-              subPath: postgresql
               name: postgredb
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
@@ -48,8 +47,11 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
+#      imagePullSecrets:
+#        - name: regcred
       nodeSelector:
         kubernetes.io/os: linux
+        kubernetes.io/hostname: s8.ubuntu.home
       serviceAccountName: postgres
       serviceAccount: postgres
       securityContext:
@@ -58,6 +60,10 @@ spec:
 #        runAsNonRoot: true
 #        fsGroup: 65534
       schedulerName: default-scheduler
+  hostAliases:
+    - ip: 10.3.1.15
+      hostnames:
+        - s8.ubuntu.home
   strategy:
     type: RollingUpdate
     rollingUpdate:

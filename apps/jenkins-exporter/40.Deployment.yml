@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: jenkins-exporter
     app.kubernetes.io/name: jenkins-exporter
-    prometheus.monitoring/service: jenkins-exporter 
+    prometheus.monitoring/service: jenkins-exporter
   annotations:
     deployment.kubernetes.io/revision: '1'
 spec:
@@ -21,7 +21,7 @@ spec:
       labels:
         app.kubernetes.io/component: jenkins-exporter
         app.kubernetes.io/name: jenkins-exporter
-        prometheus.monitoring/service: jenkins-exporter 
+        prometheus.monitoring/service: jenkins-exporter
     spec:
       volumes:
         - name: jenkins-exporter-storage
@@ -36,14 +36,14 @@ spec:
             - /usr/src/app/jenkins_exporter.py
             - '--jenkins'
             - 'https://s3.ubuntu.home/jenkins'
-          image: s2.ubuntu.home:5000/docker.io/home/jenkins_exporter:d9c9ebe
+          image: registry.ubuntu.home/docker.io/home/jenkins_exporter:d9c9ebe
           env:
             - name: JENKINS_SERVER
-              value: https://s3.ubuntu.home/jenkins 
+              value: https://s3.ubuntu.home/jenkins
             - name: VIRTUAL_PORT
               value: '9118'
             - name: INSECURE
-              value: '1' 
+              value: '1'
             - name: JENKINS_USER
               valueFrom:
                 secretKeyRef:
@@ -53,7 +53,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                    name: jenkins-creds
-                   key: password 
+                   key: password
           volumeMounts:
             - mountPath: "/etc/nginx/ssl"
               name: jenkins-tls

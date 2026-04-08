@@ -39,10 +39,10 @@ spec:
           emptyDir: {}
       containers:
         - name: redis
-          command: 
+          command:
             - redis-server
             - "/etc/redis/redis.conf"
-          image:  s2.ubuntu.home:5000/docker.io/redis:6.2.6
+          image:  registry.ubuntu.home/docker.io/redis:6.2.6
           resources:
             limits:
               cpu: 200m
@@ -59,13 +59,13 @@ spec:
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
         - name: hubot
-          command: 
+          command:
             - "/usr/local/hubot/bin/hubot"
             - "--adapter"
             - "slack"
           env:
             - name: HUBOT_BOT_NAME
-              value: hubot 
+              value: hubot
             - name: HUBOT_HOME
               value: /usr/local/hubot
             - name: HUBOT_SLACK_TOKEN
@@ -73,7 +73,7 @@ spec:
                 secretKeyRef:
                    name: slack-token
                    key: secret
-          image:  s2.ubuntu.home:5000/alpine/hubot:v3.9.10
+          image:  registry.ubuntu.home/alpine/hubot:v3.9.10
           resources:
             limits:
               cpu: 200m

@@ -191,7 +191,7 @@ data:
       },
       {
         "text": "S2: Docker Registry",
-        "html": "http://s2.ubuntu.home:5000/v2/_catalog",
+        "html": "http://registry.ubuntu.home/v2/_catalog",
         "id": "registry",
         "image": "images/blank.png"
       },

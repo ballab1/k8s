@@ -27,7 +27,7 @@ spec:
             readOnly: false
       containers:
         - name: devpi
-          image:  s2.ubuntu.home:5000/docker.io/muccg/devpi:4.5.1
+          image:  registry.ubuntu.home/docker.io/muccg/devpi:4.5.1
           env:
             - name: DEVPI_PASSWORD
               valueFrom:
@@ -50,9 +50,14 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
+        kubernetes.io/hostname: s8.ubuntu.home
       serviceAccountName: devpi
       serviceAccount: devpi
       schedulerName: default-scheduler
+  hostAliases:
+    - ip: 10.3.1.15
+      hostnames:
+        - s8.ubuntu.home
   strategy:
     type: RollingUpdate
     rollingUpdate:

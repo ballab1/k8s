@@ -1,5 +1,5 @@
 image:
-  baseRepo: s2.ubuntu.home:5000/registry.k8s.io/sig-storage
+  baseRepo: registry.ubuntu.home/registry.k8s.io/sig-storage
   smb:
     repository: /smbplugin
     tag: v1.17.0

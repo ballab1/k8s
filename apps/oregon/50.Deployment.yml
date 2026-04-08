@@ -40,7 +40,7 @@ spec:
           emptyDir: {}
       containers:
         - name: oregon
-          image:  s2.ubuntu.home:5000/docker.io/nginx:1.26.3
+          image:  registry.ubuntu.home/docker.io/nginx:1.26.3
           imagePullPolicy: IfNotPresent
           ports:
             - name: oregon
@@ -73,7 +73,7 @@ spec:
           command:
             - nginx-prometheus-exporter
             - -nginx.scrape-uri=http://127.0.0.1:8080/metrics
-          image: s2.ubuntu.home:5000/docker.io/nginx/nginx-prometheus-exporter:1.4.0
+          image: registry.ubuntu.home/docker.io/nginx/nginx-prometheus-exporter:1.4.0
           ports:
             - name: metrics
               containerPort: 9113

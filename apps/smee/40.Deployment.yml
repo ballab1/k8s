@@ -31,7 +31,7 @@ spec:
               value: http://s3.ubuntu.home:8070/jenkins/generic-webhook-trigger/invoke
             - name: SMEE_URL
               value: https://smee.io/F9gFiEeTza0Po4Rd
-          image:  s2.ubuntu.home:5000/alpine/smee:dev
+          image:  registry.ubuntu.home/alpine/smee:dev
           resources:
             limits:
               cpu: 200m

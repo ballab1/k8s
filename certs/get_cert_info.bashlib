@@ -231,7 +231,7 @@ function get_cert_info::main() {
     local -r KUBECTL='/snap/bin/microk8s.kubectl'
     local -r MICROK8S='/snap/bin/microk8s'
 
-    get_cert_info::update_certs
+#    get_cert_info::update_certs
 
     cd "$HOMEDIR" || exit
     [ -d "$WORKDIR" ] && sudo rm -rf "$WORKDIR"

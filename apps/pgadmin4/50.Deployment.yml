@@ -30,7 +30,7 @@ spec:
             readOnly: false
       containers:
         - name: pgadmin4
-          image:  s2.ubuntu.home:5000/docker.io/dpage/pgadmin4:9.6.0
+          image:  registry.ubuntu.home/docker.io/dpage/pgadmin4:9.14.0
           envFrom:
           env:
             - name: USER
@@ -72,6 +72,7 @@ spec:
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
+        kubernetes.io/hostname: s8.ubuntu.home
       securityContext:
         fsGroup: 5050
         runAsUser: 5050
@@ -79,6 +80,10 @@ spec:
       serviceAccountName: pgadmin4
       serviceAccount: pgadmin4
       schedulerName: default-scheduler
+  hostAliases:
+    - ip: 10.3.1.15
+      hostnames:
+        - s8.ubuntu.home
   strategy:
     type: RollingUpdate
     rollingUpdate:

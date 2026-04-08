@@ -13,6 +13,9 @@ declare -r RED='\x1b[31m'
 declare -r BLUE='\x1b[94m'
 declare -r RESET='\x1b[0m'
 declare -r SQL_DIR='/home/bobb/src/postgres/'
+declare -r QUICKEN_DIR='/home/bobb/src/quicken/'
+#declare -r POSTGRES_HOST='postgres.postgres.svc.cluster.local'
+declare -r POSTGRES_HOST='127.0.0.1'
 
 
 # -----------------------------------------------------------------------------------
@@ -79,11 +82,11 @@ function k8s::__onexit() {
 
     k8s::journalctl
 
-    local -i delta="$(timer.getTimestamp)"
+    local -i delta="$(timer::getTimestamp)"
     delta="$(( delta - START ))"
 
     mkdir -p "$CURRENT" ||:
-    [ "$delta" -lt 3 ] || printf '\n\n%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer.fmtElapsed "$delta")" | tee -a "${CURRENT}/elapsed.times.txt"
+    [ "$delta" -lt 3 ] || printf '\n\n%s %s %s\n\n' "$(date -Ins)" 'Total Elapse time' "$(timer::fmtElapsed "$delta")" | tee -a "${CURRENT}/elapsed.times.txt"
 }
 
 # -----------------------------------------------------------------------------------
@@ -115,15 +118,18 @@ function reinit::create_registry_defs() {
 
     local host
     for host in "$@"; do
-        local reg="http://${host}"
+        local registry="https://${host}"
         reinit::run mkdir -p "${configPath}/$host"
-        cat << REGISTRY > "${configPath}/${host}/hosts.toml"
-server = "$reg"
 
-[host."$reg"]
-  capabilities = ["pull", "resolve"]
+        cat << REGISTRY > "${configPath}/${host}/hosts.toml"
+server = "$registry"
+
+[host."$registry"]
+  capabilities = ["pull", "resolve", 'push' ]
+  ca = '/mnt/GIT/Soho-Ball.certs/Soho-Ball_CA/certs/SohoBall-Server-Chain.crt'
 REGISTRY
         reinit::run chown -R root:microk8s "${configPath}/$host"
+
     done
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -202,15 +208,16 @@ function reinit::onexit() {
 
     [ "${DEBUG:-0}" -eq 0 ] && return 0
 
-    declare now=$(timer.getTimestamp)
+    declare now=$(timer::getTimestamp)
     declare -i elapsed=$((now - START))
-    printf '%s Elapsed time: %s\n' "$(date -Ins)" "$(timer.fmtElapsed $elapsed)"
+    printf '%s Elapsed time: %s\n' "$(date -Ins)" "$(timer::fmtElapsed $elapsed)"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function reinit::registry_refs() {
 
-    local registry="$(sed -E -e 's|^(.+):.*$|\1|' <<< "${REGISTRY}")"
-    nslookup "${registry}" | awk '{if((NR==5 && match($1,"^Name")>0)||(NR != 2 && match($1,"^Address")>0)){print $2 ":5000"}}'
+#    local registry="$(sed -E -e 's|^(.+):.*$|\1|' <<< "${REGISTRY}")"
+#    nslookup "${registry}" | awk '{if((NR==5 && match($1,"^Name")>0)||(NR != 2 && match($1,"^Address")>0)){print $2 ":5000"}}'
+    echo "$registry"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function reinit::remove_previous() {
@@ -388,7 +395,7 @@ function k8s::add_new_content() {
 
     echo 'adding new content'
 
-    k8s::update_certs
+#    k8s::update_certs
     for app in "${K8S_APPS[@]}"; do
         k8s::__run "$KUBECTL" create -f "${PROGRAM_DIR}/apps/${app}/" ||:
 #        jsonnet -e 'import "configMap.jsonnet"'   --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.key)"   --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall_CA.crt)"  --ext-str root_ca_key="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.key)"  --ext-str ca_crt="$(base64 -w0 ~/.inf/ssl/SohoBall-Server.crt)"
@@ -666,7 +673,8 @@ function k8s::get_last_backup() {
 # -----------------------------------------------------------------------------------
 function k8s::get_latest_file() {
 
-   tar -xzvf "$(k8s::get_last_backup "${SQL_DIR}" 'tgz')"
+   local sql_dir="${1:?}"
+   tar -xzvf "$(k8s::get_last_backup "$sql_dir" 'tgz')"
 }
 
 # -----------------------------------------------------------------------------------
@@ -764,9 +772,9 @@ function k8s::log_elapsed() {
     mkdir -p "$CURRENT" ||:
 
     local -r text="${1:-}"
-    local now=$(timer.getTimestamp)
+    local now=$(timer::getTimestamp)
 
-    printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer.fmtElapsed "$((now - LASTTIME))")" | tee -a "${CURRENT}/elapsed.times.txt"
+    printf '\n%s %s %s\n\n' "$(date -Ins)" "$text" "$(timer::fmtElapsed "$((now - LASTTIME))")" | tee -a "${CURRENT}/elapsed.times.txt"
 
     LASTTIME="$now"
     stty sane
@@ -795,7 +803,7 @@ function k8s::reinit_nodes() {
     echo 'reinit each node'
 
     REMOTE='/tmp/reinit'
-    function reinstall.remote() {
+    function reinstall::remote() {
 
         local -r h="${1:?}"
 
@@ -810,7 +818,7 @@ function k8s::reinit_nodes() {
         ssh "$h" "[ -e '$REMOTE' ] && rm '$REMOTE'"
     }
 
-    k8s::__run_in_parallel 'reinstall.remote' 'log' "${K8S_NODES[@]}"
+    k8s::__run_in_parallel 'reinstall::remote' 'log' "${K8S_NODES[@]}"
 #    rm "$SCRIPT"
     DEBUG=1
 
@@ -853,7 +861,7 @@ function k8s::reinstall_prometheus() {
     sleep 2
     microk8s enable prometheus
     sleep 2
-    k8s::__run "$KUBECTL" patch deployment grafana -n "$ns" -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"s2.ubuntu.home:5000/docker.io/grafana/grafana:11.1.5"}]}}}}'
+    k8s::__run "$KUBECTL" patch deployment grafana -n "$ns" -p '{"spec":{"template":{"spec":{"containers":[{"name":"grafana","image":"registry.ubuntu.home/docker.io/grafana/grafana:'"${GRAFANA_VERSION}"'"}]}}}}'
     k8s::__run "$KUBECTL" patch service alertmanager-main -n "$ns" -p '{"spec":{"type":"LoadBalancer"}}'
     k8s::__run "$KUBECTL" patch service prometheus-k8s -n "$ns" -p '{"spec":{"type":"LoadBalancer"}}'
     k8s::load_namespace 'prometheus'
@@ -959,6 +967,12 @@ function k8s::remove_persistentvolumes() {
 }
 
 # -----------------------------------------------------------------------------------
+function k8s::psql_load_csv() {
+    #
+    echo
+}
+
+# -----------------------------------------------------------------------------------
 function k8s::restore_statefull_apps() {
 
   local POSTGRES_NAMESPACE='postgres'
@@ -975,40 +989,28 @@ function k8s::restore_statefull_apps() {
     exit
   fi
 
-  local pod_name=
   [ "${#args[*]}" -eq 0 ] && args=('postgres' 'pgadmin4' 'devpi')
 
   for arg in "${args[@]}"; do
-    pod_name=''
     case "$arg" in
       postgres)
-        k8s::verify_hostpath "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" 'pod_name' || exit
-        k8s::verify_dbms "$POSTGRES_NAMESPACE" "$pod_name" || exit
+        k8s::verify_dbms "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" || exit
         ;;
 
       pgadmin4)
-        k8s::verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" 'pod_name' || exit
+        k8s::verify_hostpath "$PGADMIN_NAMESPACE" "$PGADMIN_PVNAME" || exit
         ;;
 
       devpi)
-        k8s::verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
-        if [ "${#pod_name}" -gt 0 ]; then
-            k8s::__run "$KUBECTL" delete pod "$pod_name" --namespace "$DEVPI_NAMESPACE"
-            k8s::verify_hostpath "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" 'pod_name' || exit
-            if [ "${#pod_name}" -gt 0 ]; then
-                "$KUBECTL" exec "$pod_name" --namespace "$DEVPI_NAMESPACE" -- sh -c '\
-                    devpi use http://localhost:3141; \
-                    devpi user -c testuser password=123; \
-                    devpi login testuser --password=123; \
-                    devpi index -c dev bases=root/pypi; \
-                    devpi use testuser/dev \
-                    '
-            fi
-        fi
+        k8s::verify_devpi "$DEVPI_NAMESPACE" "$DEVPI_PVNAME" || exit
+        ;;
+
+      quicken)
+        k8s::verify_quicken "$POSTGRES_NAMESPACE" "$POSTGES_PVNAME" || exit
         ;;
 
       *)
-        echo 'arg must be empty or one of ( postgres | pgadmin4 | devpi )'
+        echo 'arg must be empty or one of ( postgres | pgadmin4 | devpi | quicken )'
         exit ;;
     esac
     echo
@@ -1077,7 +1079,7 @@ function k8s::update_kube_config() {
     sed -i -e "s|https://127.0.0.1:16443|https://${ip}:16443|g" -e "s|microk8s|${K8S_CLUSTERNAME}|g" "$config_file"
 
     local -r src_config="$(readlink -f "$config_file")"
-    function k8s::update_kube_config.update_host() {
+    function k8s::update_kube_config::update_host() {
         local -r h="${1:?}"
         echo "setting k8s config on $h"
         mkdir -p "${homeDir}/.kube"
@@ -1086,7 +1088,7 @@ function k8s::update_kube_config() {
         sudo usermod -a -G microk8s "$(getent passwd "$uid"|cut -d ':' -f 1)"
     }
 
-    k8s::__run_in_parallel 'k8s::update_kube_config.update_host' '.' "${K8S_NODES[@]}"
+    k8s::__run_in_parallel 'k8s::update_kube_config::update_host' '.' "${K8S_NODES[@]}"
 
 #    busy_timeoput="$(sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout;')"
 #    sqlite3 /var/snap/microk8s/current/var/kubernetes/backend/cluster.db 'PRAGMA busy_timeout = 20000;'
@@ -1203,14 +1205,17 @@ function k8s::update_jenkins_config() {
 function k8s::verify_dbms() {
 
   local -r NAMESPACE="${1:?}"
-  local -r POD="${2:?}"
+  local -r PVNAME="${2:?}"
   local -r INIT_MSG='LOG:  database system is ready to accept connections'
+
+  local pod_name=''
+  k8s::verify_hostpath "$NAMESPACE" "$PVNAME" 'pod_name' || exit
 
   echo -n 'wait until postgres DBMS is ready for connections '
   local lines=''
   local -i count=0
   while true; do
-    lines="$("$KUBECTL" logs --namespace "$NAMESPACE" "$POD" | grep "$INIT_MSG" ||:)"
+    lines="$("$KUBECTL" logs --namespace "$NAMESPACE" "$pod_name" | grep "$INIT_MSG" ||:)"
     [ "$(wc -l <<< "$lines")" -gt 0 ] && break
     if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
       echo
@@ -1220,43 +1225,60 @@ function k8s::verify_dbms() {
     sleep 2
     echo -n '.'
   done
-#shellcheck disable=SC2050
-if [ 0 != 0 ]; then
-  echo -n ' '
-  sleep 2
-  count=0
-  while true; do
-    lines="$("$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -c '\l' 2>&1)"
-    [ "$(wc -l <<< "$lines")" -gt 1 ] && break
-    if [ "$(( ++count ))" -gt "$MAX_ITER" ]; then
-      echo
-      echo -e " ... ${RED}Unable to determine if Database is running${RESET}"
-      return 1
-    fi
-    "$KUBECTL" logs --namespace "$NAMESPACE" "$POD" > "${POD}.${count}.log"
-    sleep 5
-    echo -n '.'
-  done
-fi
+
   echo -e " ${GREEN}..database running${RESET}"
 
-  local sql_file="$(k8s::get_latest_file)"
+  local sql_file="$(k8s::get_latest_file "$SQL_DIR")"
   if [ ! -f "$sql_file" ]; then
-    echo -e " ... ${RED}Backup file not found${RESET}"
+    echo -e " ... ${RED}Backup file '$sql_file' not found${RESET}"
     return 1
   fi
 
-  echo -e "load last backup '${BLUE}${sql_file}${RESET}' into DBMS"
-  sleep 10  # let filesystem quiesce to ensure DBMS is available
-  k8s::__run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${POD}:/tmp/$sql_file"
-  sleep 2  # let filesystem quiesce to ensure file is available
-  {
-#    k8s::__run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h postgres.postgres.svc.cluster.local -U postgres -f "/tmp/$sql_file"
-    k8s::__run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- psql -h 127.0.0.1 -U postgres -f "/tmp/$sql_file"
-  } > "${WORKSPACE}/current/restore_postgres.sql.log"
-  k8s::__run "$KUBECTL" exec -t --namespace "$NAMESPACE" "$POD" -- rm "/tmp/$sql_file"
+  (
+    echo -e "load last backup '${BLUE}${sql_file}${RESET}' into DBMS"
+    sleep 15  # let filesystem quiesce to ensure DBMS is available
+    k8s::__run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${pod_name}:/tmp/$sql_file"
+    sleep 2  # let filesystem quiesce to ensure file is available
+    {
+      "$KUBECTL" exec "$pod_name" --namespace "$NAMESPACE" -- sh -c "\
+          psql -h '$POSTGRES_HOST' -U postgres -f '/tmp/${sql_file}';
+          rm /tmp/${sql_file} \
+          "
+    } > "${WORKSPACE}/current/restore_${sql_file}.log"
+  ) ||:
   rm "$sql_file"
   return 0
+}
+
+# -----------------------------------------------------------------------------------
+function k8s::verify_devpi() {
+
+  local -r NAMESPACE="${1:?}"
+  local -r PVNAME="${2:?}"
+
+  local pod_name=''
+  k8s::verify_hostpath "$NAMESPACE" "$PVNAME" 'pod_name' || exit
+  if [ "${#pod_name}" -le 0 ]; then
+    echo -e " ... ${RED}pod_name not defined${RESET}"
+    return 1
+  fi
+
+  k8s::__run "$KUBECTL" delete pod "$pod_name" --namespace "$NAMESPACE"
+
+  k8s::verify_hostpath "$NAMESPACE" "$PVNAME" 'pod_name' || exit
+  if [ "${#pod_name}" -le 0 ]; then
+    echo -e " ... ${RED}pod_name not defined${RESET}"
+    return 1
+  fi
+
+  sleep 6
+  "$KUBECTL" exec "$pod_name" --namespace "$NAMESPACE" -- sh -c "\
+      devpi use http://localhost:3141; \
+      devpi user -c testuser password=123; \
+      devpi login testuser --password=123; \
+      devpi index -c dev bases=root/pypi; \
+      devpi use testuser/dev \
+      "
 }
 
 # -----------------------------------------------------------------------------------
@@ -1264,12 +1286,12 @@ function k8s::verify_hostpath() {
 
   local -r NAMESPACE="${1:?}"
   local -r PV_NAME="${2:?}"
-  local -r POD_NAME="${3:?}"
+  local -r POD_NAME="${3:-}"
 
 
   echo -en "verify NAMESPACE: '${BLUE}${NAMESPACE}${RESET}' exists"
   if [ "$("$KUBECTL" get namespace -o json | jq -r '[.items[]|select(.metadata.name == "'"$NAMESPACE"'" and .status.phase == "Active")]|length')" -eq 0 ];then
-    echo -e " ${RED}...Namespace does not exist${RESET}"
+    echo -e " ${RED}...Namespace '${NAMESPACE}' does not exist${RESET}"
     return 1
   fi
   echo -e " ${GREEN}...ok${RESET}"
@@ -1285,7 +1307,7 @@ function k8s::verify_hostpath() {
   echo -ne "verify PV directory for '${BLUE}${PV_NAME}${RESET}' defined"
   local -r dir="$("$KUBECTL" get pv "$PV_NAME" -o=jsonpath='{.spec.hostPath.path}')"
   if [ "${#dir}" -eq 0 ];then
-    echo -e " ${RED}... Dir: not defined${RESET}"
+    echo -e " ${RED}... Dir: '${dir}' not defined${RESET}"
     return 1
   fi
   echo -e " ... ${GREEN}directory found. PV:${PV_NAME} uses ${dir}${RESET}"
@@ -1293,12 +1315,12 @@ function k8s::verify_hostpath() {
   echo -n 'verify pod defined'
   local pod="$("$KUBECTL" get pods --namespace "$NAMESPACE" -o=jsonpath='{.items[0].metadata.name}')"
   if [ "${#pod}" -eq 0 ];then
-    echo -e " ... ${RED}Pod: not defined${RESET}"
+    echo -e " ... ${RED}Pod: '${pod}' not defined${RESET}"
     return 1
   fi
   echo -e " ... ${GREEN}found ${pod}${RESET}"
 
-  echo -e "make sure PV:${BLUE}${PV_NAME}${RESET} has local directory on '${BLUE}${host}${RESET}':"
+  echo -e "make sure PV: ${BLUE}${PV_NAME}${RESET} has local directory on '${BLUE}${host}${RESET}':"
   echo -e " ... ${GREY}mkdir -p '$dir'; chmod 777 '$dir'${RESET}"
   #shellcheck disable=SC2029
   ssh "$host" "mkdir -p '$dir'; sudo chmod 777 '$dir' ||:"
@@ -1323,4 +1345,39 @@ function k8s::verify_hostpath() {
   return 0
 }
 
+# -----------------------------------------------------------------------------------
+function k8s::verify_quicken() {
+
+  local -r NAMESPACE="${1:?}"
+  local -r PV_NAME="${2:?}"
+
+  local pod_name=''
+  k8s::verify_hostpath "$NAMESPACE" "$PV_NAME" 'pod_name' || exit
+  if [ "${#pod_name}" -le 0 ]; then
+    echo -e " ... ${RED}pod_name not defined${RESET}"
+    return 1
+  fi
+
+  local sql_file="$(k8s::get_latest_file "$QUICKEN_DIR")"
+  if [ ! -f "$sql_file" ]; then
+    echo -e " ... ${RED}Backup file '$sql_file' not found${RESET}"
+    return 1
+  fi
+
+  (
+  echo -e "update 'quicken_data' in DBMS from last csv: '${BLUE}${sql_file}${RESET}'"
+  sleep 10  # let filesystem quiesce to ensure DBMS is available
+  k8s::__run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${pod_name}:/tmp/$sql_file"
+  sleep 2  # let filesystem quiesce to ensure file is available
+  {
+    "$KUBECTL" exec "$pod_name" --namespace "$NAMESPACE" -- sh -c "\
+        sed -e 's|\xa0|_|g' '/tmp/${sql_file}'| \
+        awk 'NR==1 { print tolower(\$0); next } { print }' > /tmp/${sql_file}.tmp; \
+        psql -h '$POSTGRES_HOST' -U postgres -d money -a -c "'"truncate quicken_data; copy quicken_data from '"'/tmp/${sql_file}.tmp' header csv"'"'"; \
+        rm '/tmp/${sql_file}' '/tmp/${sql_file}.tmp' \
+        "
+  } > "${WORKSPACE}/current/restore_${sql_file}.log"
+  ) ||:
+  rm "$sql_file"
+}
 # -----------------------------------------------------------------------------------
