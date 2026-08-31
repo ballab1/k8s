@@ -1,22 +1,19 @@
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
   name: devpi
   namespace: devpi
   labels:
-    app.kubernetes.io/component: devpi
     app.kubernetes.io/name: devpi
+    app.kubernetes.io/component: devpi
 spec:
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
   ports:
     - name: devpi
-      protocol: TCP
       port: 3141
       targetPort: devpi
   selector:
-    app.kubernetes.io/component: devpi
-    app.kubernetes.io/name: devpi
-  sessionAffinity: None
+    name: devpi
   type: ClusterIP

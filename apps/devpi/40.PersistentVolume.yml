@@ -6,12 +6,7 @@ spec:
   capacity:
     storage: 10Mi
   accessModes:
-    - ReadWriteMany
-  claimRef:
-    kind: PersistentVolumeClaim
-    namespace: devpi
-    name: pvc-devpi
-    apiVersion: v1
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: microk8s-hostpath
   hostPath:

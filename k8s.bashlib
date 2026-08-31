@@ -1237,7 +1237,7 @@ function k8s::verify_dbms() {
   (
     echo -e "load last backup '${BLUE}${sql_file}${RESET}' into DBMS"
     sleep 15  # let filesystem quiesce to ensure DBMS is available
-    k8s::__run "$KUBECTL" cp "$sql_file" "${NAMESPACE}/${pod_name}:/tmp/$sql_file"
+    k8s::__run "$KUBECTL" cp "$sql_file" "${pod_name}:/tmp/$sql_file" --namespace "$NAMESPACE"
     sleep 2  # let filesystem quiesce to ensure file is available
     {
       "$KUBECTL" exec "$pod_name" --namespace "$NAMESPACE" -- sh -c "\

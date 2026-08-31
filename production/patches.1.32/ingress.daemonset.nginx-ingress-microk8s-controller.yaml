@@ -3,7 +3,7 @@ spec:
     spec:
       containers:
         - name: nginx-ingress-microk8s
-          image: registry.k8s.io/ingress-nginx/controller:v1.11.2
+          image: registry.k8s.io/ingress-nginx/controller:v1.13.8
           args:
             - /nginx-ingress-controller
             - '--configmap=$(POD_NAMESPACE)/nginx-load-balancer-microk8s-conf'

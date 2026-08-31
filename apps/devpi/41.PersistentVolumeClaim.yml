@@ -5,8 +5,9 @@ metadata:
   namespace: devpi
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 100M
+      storage: 10Mi
+  storageClassName: microk8s-hostpath
   volumeName: pv-hp-devpi

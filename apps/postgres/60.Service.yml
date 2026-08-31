@@ -4,8 +4,7 @@ metadata:
   name: postgres
   namespace: postgres
   labels:
-    app.kubernetes.io/component: postgres
-    app.kubernetes.io/name: postgres
+    app: postgres
 spec:
   ipFamilies:
     - IPv4
@@ -16,7 +15,6 @@ spec:
       port: 5432
       targetPort: postgres
   selector:
-    app.kubernetes.io/component: postgres
-    app.kubernetes.io/name: postgres
+    app: postgres
   sessionAffinity: None
   type: ClusterIP

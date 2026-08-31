@@ -5,8 +5,9 @@ metadata:
   namespace: postgres
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 100M
+      storage: 100Mi
+  storageClassName: microk8s-hostpath
   volumeName: pv-hp-postgres

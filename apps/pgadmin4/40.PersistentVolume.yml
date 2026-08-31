@@ -6,7 +6,7 @@ spec:
   capacity:
     storage: 10Mi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   claimRef:
     kind: PersistentVolumeClaim
     namespace: pgadmin4

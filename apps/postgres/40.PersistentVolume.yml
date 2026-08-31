@@ -6,12 +6,7 @@ spec:
   capacity:
     storage: 100Mi
   accessModes:
-    - ReadWriteMany
-  claimRef:
-    kind: PersistentVolumeClaim
-    namespace: postgres
-    name: pvc-postgres
-    apiVersion: v1
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: microk8s-hostpath
   hostPath:

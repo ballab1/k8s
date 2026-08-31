@@ -1,36 +1,25 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
   namespace: postgres
-  labels:
-    app.kubernetes.io/component: postgres
-    app.kubernetes.io/name: postgres
-  annotations:
-    deployment.kubernetes.io/revision: '1'
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: postgres
-      app.kubernetes.io/name: postgres
-      prometheus.monitoring/service: postgres
+      app: postgres
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: postgres
-        app.kubernetes.io/name: postgres
-        prometheus.monitoring/service: postgres
+        app: postgres
     spec:
       volumes:
         - name: postgredb
           persistentVolumeClaim:
             claimName: pvc-postgres
-            readOnly: false
       containers:
         - name: postgres
           image: registry.ubuntu.home/docker.io/postgres:17.6-alpine3.21
-          imagePullPolicy: "IfNotPresent"
           ports:
             - name: postgres
               containerPort: 5432
@@ -38,36 +27,44 @@ spec:
           envFrom:
             - configMapRef:
                 name: postgres-config
+          resources: {}
           volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: postgredb
+            - name: postgredb
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: IfNotPresent
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
-#      imagePullSecrets:
-#        - name: regcred
       nodeSelector:
-        kubernetes.io/os: linux
         kubernetes.io/hostname: s8.ubuntu.home
+        kubernetes.io/os: linux
       serviceAccountName: postgres
       serviceAccount: postgres
       securityContext:
+        fsGroup: 999
         fsGroupChangePolicy: OnRootMismatch
-#        runAsUser: 65534
-#        runAsNonRoot: true
-#        fsGroup: 65534
       schedulerName: default-scheduler
-  hostAliases:
-    - ip: 10.3.1.15
-      hostnames:
-        - s8.ubuntu.home
-  strategy:
+      hostAliases:
+        - ip: 10.3.1.15
+          hostnames:
+            - s8.ubuntu.home
+  serviceName: postgres
+  podManagementPolicy: OrderedReady
+  updateStrategy:
     type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 25%
-      maxSurge: 25%
   revisionHistoryLimit: 10
-  progressDeadlineSeconds: 600
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain

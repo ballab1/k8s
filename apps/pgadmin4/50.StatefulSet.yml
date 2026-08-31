@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pgadmin4
+  namespace: pgadmin4
+spec:
+  serviceName: pgadmin4
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin4
+  template:
+    metadata:
+      labels:
+        app: pgadmin4
+    spec:
+      serviceAccountName: pgadmin4
+      securityContext:
+        fsGroup: 5050
+        runAsUser: 5050
+        runAsGroup: 5050
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/hostname: s8.ubuntu.home
+      hostAliases:
+        - ip: 10.3.1.15
+          hostnames:
+            - s8.ubuntu.home
+      volumes:
+        - name: config
+          configMap:
+            name: pgadmin4-config
+      containers:
+        - name: pgadmin4
+          image: registry.ubuntu.home/docker.io/dpage/pgadmin4:9.17
+          env:
+            - name: USER
+              value: pgadmin
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: pgadmin4
+                  key: username
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pgadmin4
+                  key: password
+          ports:
+            - name: pgadmin4
+              containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /pgadmin4/config_local.py
+              subPath: config_local.py
+              readOnly: true
+            - name: config
+              mountPath: /pgadmin4/servers.json
+              subPath: servers.json
+            - name: pgadmin4-storage
+              mountPath: /var/lib/pgadmin
+              readOnly: false
+
+  volumeClaimTemplates:
+    - metadata:
+        name: pgadmin4-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: microk8s-hostpath
+        resources:
+          requests:
+            storage: 100Mi
