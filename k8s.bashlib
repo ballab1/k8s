@@ -1241,6 +1241,10 @@ function k8s::verify_dbms() {
     sleep 2  # let filesystem quiesce to ensure file is available
     {
       "$KUBECTL" exec "$pod_name" --namespace "$NAMESPACE" -- sh -c "\
+          psql -h '$POSTGRES_HOST' -U postgres -c 'DROP DATABASE grafana;';
+          psql -h '$POSTGRES_HOST' -U postgres -c 'DROP DATABASE kafka;';
+          psql -h '$POSTGRES_HOST' -U postgres -c 'DROP DATABASE money;';
+          psql -h '$POSTGRES_HOST' -U postgres -c 'DROP DATABASE pgadmin4;';
           psql -h '$POSTGRES_HOST' -U postgres -f '/tmp/${sql_file}';
           rm /tmp/${sql_file} \
           "

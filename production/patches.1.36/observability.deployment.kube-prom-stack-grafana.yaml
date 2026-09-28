@@ -1,0 +1,45 @@
+metadata:
+  labels:
+    app.kubernetes.io/version: "${GRAFANA_VERSION}"
+spec:
+  template:
+    spec:
+      containers:
+      - name: grafana
+        image: registry.ubuntu.home/docker.io/grafana/grafana:${GRAFANA_VERSION}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+            scheme: HTTP
+          failureThreshold: 10
+          periodSeconds: 10
+          successThreshold: 10
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 200m
+            memory: 512Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+          - name: config
+            mountPath: /etc/grafana/grafana.ini
+            subPath: grafana.ini
+          - name: storage
+            mountPath: /var/lib/grafana
+          - name: sc-dashboard-volume
+            mountPath: /tmp/dashboards
+          - name: sc-dashboard-provider
+            mountPath: /etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml
+            subPath: provider.yaml
+          - name: sc-datasources-volume
+            mountPath: /etc/grafana/provisioning/datasources

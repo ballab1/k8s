@@ -1,0 +1,4 @@
+spec:
+  endpoints:
+  - interval: 15s
+    port: grafana

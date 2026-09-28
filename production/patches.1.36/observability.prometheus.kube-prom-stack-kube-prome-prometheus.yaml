@@ -1,0 +1,8 @@
+spec:
+  additionalScrapeConfigs:
+    key: additional-configs.yaml
+    name: additional-configs
+    optional: true
+  configMaps:
+    - additional-targets
+  retention: 170h

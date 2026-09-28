@@ -30,7 +30,7 @@ spec:
             - '/app/console'
           args:
             - '--config.filepath=/app/config/config.yml'
-          image: registry.ubuntu.home/docker.redpanda.com/redpandadata/console:v3.6.0
+          image: registry.ubuntu.home/docker.redpanda.com/redpandadata/console:v3.12.0
           ports:
             - name: rp-console
               containerPort: 8080

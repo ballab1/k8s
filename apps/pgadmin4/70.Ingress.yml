@@ -4,9 +4,9 @@ metadata:
   name: pgadmin4-ingress
   namespace: pgadmin4
   annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: 'true'
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Access-Control-Allow-Origin https://web.prod.k8s.home always;
+    prometheus.io/port: '9113'
 spec:
   ingressClassName: public
   rules:

@@ -9,5 +9,6 @@ spec:
       port: 80
       targetPort: pgadmin4
   selector:
-    app.kubernetes.io/name: pgadmin4
-  clusterIP: None
+    app: pgadmin4
+  sessionAffinity: None
+  type: ClusterIP
